@@ -210,7 +210,7 @@ def readFile(filename: str) -> dict:
     eventDict: dict = {}
     currentEvent: str = ""
     bufferString = ""
-    with open(inputFilename, "r") as inputFile:
+    with open(filename, "r") as inputFile:
         for line in inputFile:
             if re.match(commentRegex, line): continue
 
