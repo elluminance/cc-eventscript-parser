@@ -234,7 +234,7 @@ if __name__ == "__main__":
         patchDict.append({"type": "ENTER", "index": "commonEvents"})
         for key, value in eventDict.items():
             with open(f"./patches/{key}.json", "w+") as jsonFile:
-                json.dump({key: value}, jsonFile, indent = 2 if debug else 0)
+                json.dump({key: value}, jsonFile, indent = 2 if debug else None)
             patchDict.append(
                 {
                     "type": "IMPORT",
@@ -242,4 +242,4 @@ if __name__ == "__main__":
                 }
             ),
         patchDict.append({"type": "EXIT"})
-        json.dump(patchDict, patchFile, indent = 2 if debug else 0)
+        json.dump(patchDict, patchFile, indent = 2 if debug else None)
