@@ -45,7 +45,7 @@ titleRegex = re.compile(r"^== (.+) ==$")
 # matches strings of the form "(key): (value)"
 propertyRegex = re.compile(r"^(\w+)\s*:\s*(.+)$")
 # matches "set (varname) (true/false)"
-setVarBoolRegex = re.compile(r"^set\s+([\w\.]+)(?:\s+|(?:\s*=\s*))(true|false)$", flags=re.I)
+setVarBoolRegex = re.compile(r"^set\s+([\w\.]+)\s*=\s*(true|false)$", flags=re.I)
 # matches "set (varname) (+/-/=) (number)"
 setVarNumRegex = re.compile(r"^set\s+([\w\.]+)\s*(=|\+|-)\s*(\d+)$", flags=re.I)
 
