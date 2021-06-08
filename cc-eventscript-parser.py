@@ -5,31 +5,10 @@ import sys
 
 # ~ crosscode eventscript v1.2.0 parser, by EL ~
 # to run:
-#   python dialogue-converter.py <input text file>
+#   python cc-eventscript-parser.py <input text file>
 #
 # to make a text file:
-#   == event title ==
-#   property: value  # all modifiable properties have default values.
-#   property: value  # that means you do not have to add them. Most cases do not need to.
-#   property: value  # in fact, it is best to leave as is unless necessary. 
-#   property: value  # frequency: REGULAR, repeat: ONCE, eventType: PARALLEL, loopCount: 3
-#   condition: ""    # if not noted, event will always be able to run.
-#   
-#   message 1:
-#   character > EXPRESSION: message
-#   character > EXPRESSION: message
-#   character > EXPRESSION: message
-#
-#   message 2:
-#   character > EXPRESSION: message
-#   character > EXPRESSION: message
-#   character > EXPRESSION: message
-#
-#   == event title ==
-#   property: value
-#   ...
-#
-# (see example text file for a more clear example.)
+#   see readme
 
 debug = False
 
@@ -160,6 +139,9 @@ def handleEvent(eventStr: str) -> dict:
                     newEvent = genChangeNumSkeleton(varName, "add", int(f"{sign}{number}"))
                 workingList.append(newEvent)
 
+        if ifCount > 0:
+            raise Exception("'if' found without corresponding 'endif'")
+
         if isIf: 
             if not hasElse:
                 return workingList, None
@@ -225,7 +207,7 @@ def handleEvent(eventStr: str) -> dict:
 eventDict = {}
 currentEvent: str = ""
 bufferString = ""
-inputFilename = sys.argv[1] if not debug else "example.txt"
+inputFilename = sys.argv[1] 
 
 if __name__ == "__main__":
     with open(inputFilename, "r") as inputFile:
