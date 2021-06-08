@@ -36,6 +36,8 @@ characterLookup: dict = {
 
 # matches lines that start with "#" or "//"
 commentRegex = re.compile(r"^(?:#|\/\/).*")
+# matches strings of the form "import (fileName)"
+importRegex = re.compile(r"^import\s+((?:\w+[\\\/]?)+)(\.json)?$", flags=re.I)
 # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
 dialogueRegex = re.compile(r"(.+)\s*>\s*([A-Z_]+)[\s:](.+)$")
 # matches strings of the form "message (number)", insensitive search
@@ -204,12 +206,10 @@ def handleEvent(eventStr: str) -> dict:
 
     return event
 
-eventDict = {}
-currentEvent: str = ""
-bufferString = ""
-inputFilename = sys.argv[1] 
-
-if __name__ == "__main__":
+def readFile(filename: str) -> dict:
+    eventDict: dict = {}
+    currentEvent: str = ""
+    bufferString = ""
     with open(inputFilename, "r") as inputFile:
         for line in inputFile:
             if re.match(commentRegex, line): continue
@@ -225,14 +225,17 @@ if __name__ == "__main__":
             else:
                 bufferString += line + "\n"
         eventDict[currentEvent] = handleEvent(bufferString)
+    
+    return eventDict
 
+def writeFiles(events: dict) -> None:
     os.makedirs("./patches/", exist_ok = True)
     os.makedirs("./assets/data/", exist_ok = True)
 
     with open("./assets/data/database.json.patch", "w+") as patchFile:
         patchDict: list[dict] = []
         patchDict.append({"type": "ENTER", "index": "commonEvents"})
-        for key, value in eventDict.items():
+        for key, value in events.items():
             with open(f"./patches/{key}.json", "w+") as jsonFile:
                 json.dump({key: value}, jsonFile, indent = 2 if debug else None)
             patchDict.append(
@@ -243,3 +246,9 @@ if __name__ == "__main__":
             ),
         patchDict.append({"type": "EXIT"})
         json.dump(patchDict, patchFile, indent = 2 if debug else None)
+
+
+if __name__ == "__main__":
+    inputFilename = sys.argv[1]
+    events = readFile(inputFilename)
+    writeFiles(events)
