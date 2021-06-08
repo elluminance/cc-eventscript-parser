@@ -3,14 +3,14 @@ import os
 import re
 import sys
 
-# ~ crosscode eventscript v1.2.1 parser, by EL ~
+# ~ crosscode eventscript v1.3.0-alpha parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 #
 # to make a text file:
 #   see readme
 
-debug = False
+debug = True
 
 # a handy dictionary for converting a character's readable name to their internal name.
 # it's simple enough to add more characters (or even custom characters!) to this.
@@ -37,7 +37,7 @@ characterLookup: dict = {
 # matches lines that start with "#" or "//"
 commentRegex = re.compile(r"^(?:#|\/\/).*")
 # matches strings of the form "import (fileName)"
-importRegex = re.compile(r"^import\s+((?:\w+[\\\/]?)+)(\.json)?$", flags=re.I)
+importRegex = re.compile(r"^import\s+((?:\w+[\\\/]?)*\w+)(\.json)?$", flags=re.I)
 # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
 dialogueRegex = re.compile(r"(.+)\s*>\s*([A-Z_]+)[\s:](.+)$")
 # matches strings of the form "message (number)", insensitive search
@@ -228,27 +228,37 @@ def readFile(filename: str) -> dict:
     
     return eventDict
 
-def writeFiles(events: dict) -> None:
+def writeEventFiles(events: dict) -> list[str]:
     os.makedirs("./patches/", exist_ok = True)
-    os.makedirs("./assets/data/", exist_ok = True)
+    fileList: list[str] = []
+    for key, value in events.items():
+        filename = f"./patches/{key}.json"
+        if debug: print(f"DEBUG: Writing file '{filename}'.")
+        with open(filename, "w+") as jsonFile:
+            json.dump({key: value}, jsonFile, indent = 2 if debug else None)
+        fileList.append(filename)
+    return fileList
 
+def writeDatabasePatchfile(filenames: list[str]) -> None:
+    os.makedirs("./assets/data/", exist_ok = True)
+    patchDict: list[dict] = []
+    patchDict.append({"type": "ENTER", "index": "commonEvents"})
+    for name in filenames:
+        fixedFilename = re.sub(r"^(\.\/)","mod:",name)
+        if debug: print(f"DEBUG: Writing patch for file at '{fixedFilename}'.")
+        patchDict.append(
+            {
+                "type": "IMPORT",
+                "src": fixedFilename
+            }
+        ),
+    patchDict.append({"type": "EXIT"})
     with open("./assets/data/database.json.patch", "w+") as patchFile:
-        patchDict: list[dict] = []
-        patchDict.append({"type": "ENTER", "index": "commonEvents"})
-        for key, value in events.items():
-            with open(f"./patches/{key}.json", "w+") as jsonFile:
-                json.dump({key: value}, jsonFile, indent = 2 if debug else None)
-            patchDict.append(
-                {
-                    "type": "IMPORT",
-                    "src": f"mod:patches/{key}.json"
-                }
-            ),
-        patchDict.append({"type": "EXIT"})
         json.dump(patchDict, patchFile, indent = 2 if debug else None)
 
 
 if __name__ == "__main__":
     inputFilename = sys.argv[1]
     events = readFile(inputFilename)
-    writeFiles(events)
+    eventFiles = writeEventFiles(events)
+    writeDatabasePatchfile(eventFiles)
