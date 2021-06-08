@@ -3,7 +3,7 @@ import os
 import re
 import sys
 
-# ~ crosscode eventscript v1.2.0 parser, by EL ~
+# ~ crosscode eventscript v1.2.1 parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 #
