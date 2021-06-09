@@ -3,7 +3,7 @@ import os
 import re
 import sys
 
-# ~ crosscode eventscript v1.3.0 parser, by EL ~
+# ~ crosscode eventscript v1.3.1 parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 #
@@ -242,9 +242,8 @@ def readFile(inputFilename: str) -> dict[dict]:
     
     return eventDict
 
-def writeEventFiles(events: dict) -> list[str]:
+def writeEventFiles(events: dict) -> None:
     os.makedirs("./patches/", exist_ok = True)
-    fileList: list[str] = []
     for eventName, eventInfo in events.items():
         filename = eventInfo["filePath"]
         directoryMatch = re.match(pathFileRegex, filename)
@@ -256,22 +255,21 @@ def writeEventFiles(events: dict) -> list[str]:
         elif eventInfo["type"] == "import":
             if(not os.path.exists(filename)):
                 print(f"Warning: File {filename} not found for importing! Adding, but make sure to create the file before using the patch.")
-        fileList.append(filename)
-    return fileList
 
-def writeDatabasePatchfile(filenames: list[str]) -> None:
+def writeDatabasePatchfile(events: dict) -> None:
     os.makedirs("./assets/data/", exist_ok = True)
     patchDict: list[dict] = []
     patchDict.append({"type": "ENTER", "index": "commonEvents"})
-    for name in filenames:
-        fixedFilename = re.sub(r"^(\.\/)","mod:",name)
-        if debug: print(f"DEBUG: Writing patch for file at '{fixedFilename}'.")
-        patchDict.append(
-            {
-                "type": "IMPORT",
-                "src": fixedFilename
-            }
-        ),
+    for event in events.values():
+        if event["type"] in ["import", "standard"]:
+            fixedFilename = re.sub(r"^(\.\/)","mod:",event["filePath"])
+            if debug: print(f"DEBUG: Writing patch for file at '{fixedFilename}'.")
+            patchDict.append(
+                {
+                    "type": "IMPORT",
+                    "src": fixedFilename
+                }
+            ),
     patchDict.append({"type": "EXIT"})
     with open("./assets/data/database.json.patch", "w+") as patchFile:
         json.dump(patchDict, patchFile, indent = 2 if debug else None)
@@ -281,4 +279,4 @@ if __name__ == "__main__":
     inputFilename = sys.argv[1]
     events = readFile(inputFilename)
     eventFiles = writeEventFiles(events)
-    writeDatabasePatchfile(eventFiles)
+    writeDatabasePatchfile(events)
