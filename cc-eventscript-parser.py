@@ -33,42 +33,41 @@ characterLookup: dict = {
     'hlin': 'main.guild-leader'
 }
 
+class CCEventRegex:
+    # matches lines that start with "#" or "//"
+    comment = re.compile(r"^(?:#|\/\/).*")
+    # matches strings of the form "import (fileName)"
+    importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
+    filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
+    # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
+    dialogue = re.compile(r"(?P<character>.+)\s*>\s*(?P<expression>[A-Z_]+)[\s:](?P<dialogue>.+)$")
+    # matches strings of the form "message (number)", insensitive search
+    eventHeader = re.compile(r"^(?:message|event) (?P<messageNum>\d+):?$", flags=re.I)
+    # matches strings of the form "== title =="
+    title = re.compile(r"^== (?P<eventTitle>.+) ==$")
+    # matches strings of the form "(key): (value)"
+    property = re.compile(r"^(?P<property>\w+)\s*:\s*(?P<value>.+)$")
+    # matches "set (varname) (true/false)"
+    setVarBool = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*=\s*(?P<value>true|false)$", flags=re.I)
+    # matches "set (varname) (+/-/=) (number)"
+    setVarNum = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*(?P<operation>=|\+|-)\s*(?P<value>\d+)$", flags=re.I)
+
+    # matches "if (condition)", "else", and  "endif" respectively
+    ifStatement = re.compile(r"^if (?P<condition>.+)$")
+    elseStatement = re.compile(r"^else$")
+    endifStatement = re.compile(r"^endif$")
+
 class EventItem:
     eventTypes = ["import", "standard"]
 
     def __init__(this, eventType: str, filePath: str, event: Union[list[dict], None] = None) -> None:
         if eventType.lower() not in EventItem.eventTypes: raise Exception(f"Error: EventType {eventType} not valid!")
         this.type = eventType.lower()
-        if not re.match(pathFileRegex, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
+        if not re.match(CCEventRegex.filepath, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
         this.filepath = filePath
         this.event = event
 
 
-#region regex
-
-# matches lines that start with "#" or "//"
-commentRegex = re.compile(r"^(?:#|\/\/).*")
-# matches strings of the form "import (fileName)"
-importRegex = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
-pathFileRegex = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
-# matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
-dialogueRegex = re.compile(r"(?P<character>.+)\s*>\s*(?P<expression>[A-Z_]+)[\s:](?P<dialogue>.+)$")
-# matches strings of the form "message (number)", insensitive search
-messageRegex = re.compile(r"^(?:message|event) (?P<messageNum>\d+):?$", flags=re.I)
-# matches strings of the form "== title =="
-titleRegex = re.compile(r"^== (?P<eventTitle>.+) ==$")
-# matches strings of the form "(key): (value)"
-propertyRegex = re.compile(r"^(?P<property>\w+)\s*:\s*(?P<value>.+)$")
-# matches "set (varname) (true/false)"
-setVarBoolRegex = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*=\s*(?P<value>true|false)$", flags=re.I)
-# matches "set (varname) (+/-/=) (number)"
-setVarNumRegex = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*(?P<operation>=|\+|-)\s*(?P<value>\d+)$", flags=re.I)
-
-# matches "if (condition)", "else", and  "endif" respectively
-ifRegex = re.compile(r"^if (?P<condition>.+)$")
-elseRegex = re.compile(r"^else$")
-endifRegex = re.compile(r"^endif$")
-#endregion regex
 
 genIfSkeleton = lambda condition: {"withElse": False, "type": "IF", "condition": condition, "thenStep": []}
 genMessageSetSkeleton = lambda num: genIfSkeleton(f"call.runCount == {num}")
@@ -77,7 +76,7 @@ genChangeNumSkeleton = lambda var, type, value: {"changeType": type,"type": "CHA
 
 
 def processDialogue(inputString: str) -> dict:
-    messageMatch = re.match(dialogueRegex, inputString)
+    messageMatch = re.match(CCEventRegex.dialogue, inputString)
     readableCharName, expression, message = messageMatch.groups()
     charName: str = characterLookup[readableCharName.strip().lower()]
 
@@ -105,14 +104,14 @@ def handleEvent(eventStr: str) -> dict:
 
         for line in eventStr.splitlines():
             line = line.strip()
-            if match := re.match(ifRegex, line):
+            if match := re.match(CCEventRegex.ifStatement, line):
                 if ifCount == 0:
                     ifCondition = match.group(1)
                 else:
                     stringBuffer += line + "\n"
                 ifCount += 1
 
-            elif re.match(endifRegex, line):
+            elif re.match(CCEventRegex.endifStatement, line):
                 if ifCount > 1:
                     stringBuffer += line + "\n"
                     ifCount -= 1
@@ -130,7 +129,7 @@ def handleEvent(eventStr: str) -> dict:
             elif ifCount > 0:
                 stringBuffer += line + "\n"
 
-            elif re.match(elseRegex, line):
+            elif re.match(CCEventRegex.elseStatement, line):
                 if (not isIf):
                     raise Exception("Error: 'else' statement found outside of if block.")
                 elif hasElse:
@@ -140,13 +139,13 @@ def handleEvent(eventStr: str) -> dict:
                     ifEventList = workingList.copy()
                     workingList = []
 
-            elif match := re.match(dialogueRegex, line):
+            elif match := re.match(CCEventRegex.dialogue, line):
                 workingList.append(processDialogue(line))
 
-            elif match := re.match(setVarBoolRegex, line):
+            elif match := re.match(CCEventRegex.setVarBool, line):
                 workingList.append(genChangeBoolSkeleton(match.group(1),bool(match.group(2))))
 
-            elif match := re.match(setVarNumRegex, line):
+            elif match := re.match(CCEventRegex.setVarNum, line):
                 varName, sign, number = match.groups()
                 if sign == "=":
                     newEvent = genChangeNumSkeleton(varName, "set", int(number))
@@ -187,9 +186,9 @@ def handleEvent(eventStr: str) -> dict:
     for line in eventStr.splitlines():
         line = line.strip()
         # skip blank lines and comments
-        if (not line) or re.match(commentRegex, line): continue
+        if (not line) or re.match(CCEventRegex.comment, line): continue
 
-        if match := re.match(messageRegex, line):
+        if match := re.match(CCEventRegex.eventHeader, line):
             if trackMessages:
                 workingEvent = genMessageSetSkeleton(messageNumber)
                 workingEvent["thenStep"] = processEvents(stringBuffer)
@@ -203,7 +202,7 @@ def handleEvent(eventStr: str) -> dict:
         elif trackMessages:
             stringBuffer += line + "\n"
 
-        elif match := re.match(propertyRegex, line):
+        elif match := re.match(CCEventRegex.property, line):
             propertyName, value = match.groups()
             if propertyName in ["frequency", "repeat", "condition", "eventType", "loopCount"]:
                 event[propertyName] = value
@@ -225,13 +224,13 @@ def readFile(inputFilename: str) -> dict[str, dict]:
     bufferString = ""
     with open(inputFilename, "r") as inputFile:
         for line in inputFile:
-            if re.match(commentRegex, line): continue
+            if re.match(CCEventRegex.comment, line): continue
             
-            if match := re.match(importRegex, line):
+            if match := re.match(CCEventRegex.importFile, line):
                 filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
                 eventDict[match.group("filename")] = EventItem("import", filename)
 
-            elif match := re.match(titleRegex, line):
+            elif match := re.match(CCEventRegex.title, line):
                 if currentEvent != "": # check that the event isn't empty so it only runs if there's actually something there
                     eventDict[currentEvent].event = handleEvent(bufferString)
                 # set the current event and clear the buffer
@@ -267,7 +266,7 @@ def writeEventFiles(events: dict) -> None:
     os.makedirs("./patches/", exist_ok = True)
     for eventName, eventInfo in events.items():
         filename = eventInfo.filepath
-        directoryMatch = re.match(pathFileRegex, filename)
+        directoryMatch = re.match(CCEventRegex.filepath, filename)
         if directoryMatch and directoryMatch.group("directory"): os.makedirs(directoryMatch.group("directory"), exist_ok= True)
         if eventInfo.type == "standard":
             if debug: print(f"DEBUG: Writing file '{filename}'.")
