@@ -40,20 +40,20 @@ commentRegex = re.compile(r"^(?:#|\/\/).*")
 importRegex = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
 pathFileRegex = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
 # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
-dialogueRegex = re.compile(r"(.+)\s*>\s*([A-Z_]+)[\s:](.+)$")
+dialogueRegex = re.compile(r"(?P<character>.+)\s*>\s*(?P<expression>[A-Z_]+)[\s:](?P<dialogue>.+)$")
 # matches strings of the form "message (number)", insensitive search
-messageRegex = re.compile(r"^(?:message|event) (\d+):?$", flags=re.I)
+messageRegex = re.compile(r"^(?:message|event) (?P<messageNum>\d+):?$", flags=re.I)
 # matches strings of the form "== title =="
-titleRegex = re.compile(r"^== (.+) ==$")
+titleRegex = re.compile(r"^== (?P<eventTitle>.+) ==$")
 # matches strings of the form "(key): (value)"
-propertyRegex = re.compile(r"^(\w+)\s*:\s*(.+)$")
+propertyRegex = re.compile(r"^(?P<property>\w+)\s*:\s*(?P<value>.+)$")
 # matches "set (varname) (true/false)"
-setVarBoolRegex = re.compile(r"^set\s+([\w\.]+)\s*=\s*(true|false)$", flags=re.I)
+setVarBoolRegex = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*=\s*(?P<value>true|false)$", flags=re.I)
 # matches "set (varname) (+/-/=) (number)"
-setVarNumRegex = re.compile(r"^set\s+([\w\.]+)\s*(=|\+|-)\s*(\d+)$", flags=re.I)
+setVarNumRegex = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*(?P<operation>=|\+|-)\s*(?P<value>\d+)$", flags=re.I)
 
 # matches "if (condition)", "else", and  "endif" respectively
-ifRegex = re.compile(r"^if (.+)$")
+ifRegex = re.compile(r"^if (?P<condition>.+)$")
 elseRegex = re.compile(r"^else$")
 endifRegex = re.compile(r"^endif$")
 #endregion regex
