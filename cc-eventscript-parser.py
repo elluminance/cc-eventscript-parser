@@ -2,9 +2,9 @@ import json
 import os
 import re
 import sys
-from typing import Union
+from typing import Union, Any
 
-# ~ crosscode eventscript v1.3.1 parser, by EL ~
+# ~ crosscode eventscript v1.4.0 parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 #
@@ -60,20 +60,30 @@ class CCEventRegex:
 class EventItem:
     eventTypes = ["import", "standard"]
 
-    def __init__(this, eventType: str, filePath: str, event: Union[list[dict], None] = None) -> None:
+    def __init__(self, eventType: str, filePath: str, event: Union[list[dict], None] = None) -> None:
         if eventType.lower() not in EventItem.eventTypes: raise Exception(f"Error: EventType {eventType} not valid!")
-        this.type = eventType.lower()
+        self.type = eventType.lower()
         if not re.match(CCEventRegex.filepath, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
-        this.filepath = filePath
-        this.event = event
+        self.filepath = filePath
+        self.event = event
 
+class EventGenerators:
+    @staticmethod
+    def ifStatement(condition: str) -> dict: return {"withElse": False, "type": "IF", "condition": condition, "thenStep": []}
 
+    @staticmethod
+    def messageSet(num: int) -> dict: return EventGenerators.ifStatement(f"call.runCount == {num}")
 
-genIfSkeleton = lambda condition: {"withElse": False, "type": "IF", "condition": condition, "thenStep": []}
-genMessageSetSkeleton = lambda num: genIfSkeleton(f"call.runCount == {num}")
-genChangeBoolSkeleton = lambda var, value: {"changeType": "set","type": "CHANGE_VAR_BOOL","varName": var, "value": value}
-genChangeNumSkeleton = lambda var, type, value: {"changeType": type,"type": "CHANGE_VAR_BOOL","varName": var, "value": value}
-
+    @staticmethod
+    def changeBoolValue(variable: str, value: bool) -> dict:
+        if type(value) is not bool: raise Exception(f"Invalid value '{value}', must be boolean")
+        return {"changeType": "set","type": "CHANGE_VAR_BOOL","varName": variable, "value": value}
+        
+    @staticmethod
+    def changeNumValue(variable: str, changeType: str, value: int) -> dict: 
+        if changeType not in ["set", "add"]: raise Exception(f"Error: Invalid changeType '{changeType}'")
+        if type(value) is not int: raise Exception(f"Invalid value '{value}', must be integer")
+        return {"changeType": changeType, "type": "CHANGE_VAR_NUMBER", "varName": variable, "value": value}
 
 def processDialogue(inputString: str) -> dict:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
@@ -118,7 +128,7 @@ def handleEvent(eventStr: str) -> dict:
                 elif ifCount < 1:
                     raise Exception("Error: 'endif' found outside of if block")
                 else:
-                    ifBlock = genIfSkeleton(ifCondition)
+                    ifBlock = EventGenerators.ifStatement(ifCondition)
                     ifBlock["thenStep"], ifBlock["elseStep"] = processEvents(stringBuffer, True)
                     if ifBlock["elseStep"] is not None: ifBlock["withElse"] = True
                     else: del ifBlock["elseStep"]
@@ -143,14 +153,14 @@ def handleEvent(eventStr: str) -> dict:
                 workingList.append(processDialogue(line))
 
             elif match := re.match(CCEventRegex.setVarBool, line):
-                workingList.append(genChangeBoolSkeleton(match.group(1),bool(match.group(2))))
+                workingList.append(EventGenerators.changeBoolValue(match.group(1),bool(match.group(2))))
 
             elif match := re.match(CCEventRegex.setVarNum, line):
                 varName, sign, number = match.groups()
                 if sign == "=":
-                    newEvent = genChangeNumSkeleton(varName, "set", int(number))
+                    newEvent = EventGenerators.changeNumValue(varName, "set", int(number))
                 elif sign in ["+", "-"]:
-                    newEvent = genChangeNumSkeleton(varName, "add", int(f"{sign}{number}"))
+                    newEvent = EventGenerators.changeNumValue(varName, "add", int(f"{sign}{number}"))
                 workingList.append(newEvent)
 
         if ifCount > 0:
@@ -190,12 +200,12 @@ def handleEvent(eventStr: str) -> dict:
 
         if match := re.match(CCEventRegex.eventHeader, line):
             if trackMessages:
-                workingEvent = genMessageSetSkeleton(messageNumber)
                 workingEvent["thenStep"] = processEvents(stringBuffer)
                 event["event"].append(workingEvent)
                 stringBuffer = ""
 
             messageNumber += 1
+            workingEvent = EventGenerators.messageSet(messageNumber)
             trackMessages = True
             event["runOnTrigger"].append(int(match.group(1)))
 
@@ -212,7 +222,7 @@ def handleEvent(eventStr: str) -> dict:
         else:
             print(f"Unrecognized line \"{line}\", ignoring...", file = sys.stderr)
         
-    workingEvent = genMessageSetSkeleton(messageNumber)
+    #workingEvent = EventGenerators.messageSet(messageNumber)
     workingEvent["thenStep"] = processEvents(stringBuffer)
     event["event"].append(workingEvent)
 
