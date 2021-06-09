@@ -42,7 +42,7 @@ class CCEventRegex:
     # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
     dialogue = re.compile(r"(?P<character>.+)\s*>\s*(?P<expression>[A-Z_]+)[\s:](?P<dialogue>.+)$")
     # matches strings of the form "message (number)", insensitive search
-    eventHeader = re.compile(r"^(?:message|event) (?P<messageNum>\d+):?$", flags=re.I)
+    eventHeader = re.compile(r"^(?:message|event) (?P<eventNum>\d+):?$", flags=re.I)
     # matches strings of the form "== title =="
     title = re.compile(r"^== (?P<eventTitle>.+) ==$")
     # matches strings of the form "(key): (value)"
@@ -78,7 +78,7 @@ class EventGenerators:
     def changeBoolValue(variable: str, value: bool) -> dict:
         if type(value) is not bool: raise Exception(f"Invalid value '{value}', must be boolean")
         return {"changeType": "set","type": "CHANGE_VAR_BOOL","varName": variable, "value": value}
-        
+
     @staticmethod
     def changeNumValue(variable: str, changeType: str, value: int) -> dict: 
         if changeType not in ["set", "add"]: raise Exception(f"Error: Invalid changeType '{changeType}'")
@@ -87,7 +87,7 @@ class EventGenerators:
 
 def processDialogue(inputString: str) -> dict:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
-    readableCharName, expression, message = messageMatch.groups()
+    readableCharName, expression, message = messageMatch.group("character", "expression", "dialogue")
     charName: str = characterLookup[readableCharName.strip().lower()]
 
     messageEvent = {
@@ -116,7 +116,7 @@ def handleEvent(eventStr: str) -> dict:
             line = line.strip()
             if match := re.match(CCEventRegex.ifStatement, line):
                 if ifCount == 0:
-                    ifCondition = match.group(1)
+                    ifCondition = match.group("condition")
                 else:
                     stringBuffer += line + "\n"
                 ifCount += 1
@@ -153,10 +153,11 @@ def handleEvent(eventStr: str) -> dict:
                 workingList.append(processDialogue(line))
 
             elif match := re.match(CCEventRegex.setVarBool, line):
-                workingList.append(EventGenerators.changeBoolValue(match.group(1),bool(match.group(2))))
+                varName, value = match.group("varName", "value")
+                workingList.append(EventGenerators.changeBoolValue(varName, bool(value)))
 
             elif match := re.match(CCEventRegex.setVarNum, line):
-                varName, sign, number = match.groups()
+                varName, sign, number = match.group("varName", "operation", "value")
                 if sign == "=":
                     newEvent = EventGenerators.changeNumValue(varName, "set", int(number))
                 elif sign in ["+", "-"]:
@@ -207,13 +208,13 @@ def handleEvent(eventStr: str) -> dict:
             messageNumber += 1
             workingEvent = EventGenerators.messageSet(messageNumber)
             trackMessages = True
-            event["runOnTrigger"].append(int(match.group(1)))
+            event["runOnTrigger"].append(int(match.group("eventNum")))
 
         elif trackMessages:
             stringBuffer += line + "\n"
 
         elif match := re.match(CCEventRegex.property, line):
-            propertyName, value = match.groups()
+            propertyName, value = match.group("property", "value")
             if propertyName in ["frequency", "repeat", "condition", "eventType", "loopCount"]:
                 event[propertyName] = value
             else: 
@@ -244,7 +245,7 @@ def readFile(inputFilename: str) -> dict[str, dict]:
                 if currentEvent != "": # check that the event isn't empty so it only runs if there's actually something there
                     eventDict[currentEvent].event = handleEvent(bufferString)
                 # set the current event and clear the buffer
-                currentEvent = match.group(1).replace("/",".")
+                currentEvent = match.group("eventTitle").replace("/",".")
                 filename = f"./patches/{currentEvent}.json"
                 if currentEvent in eventDict:
                     raise KeyError("Duplicate event name found in input file.")
