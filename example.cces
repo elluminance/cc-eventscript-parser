@@ -1,7 +1,7 @@
 # lines that begin with "#" or "//" are skipped.
 
 # the title/name of the event should be surrounded by "==" signs.
-== apollo+battle-over+example ==
+== banana/apollo+battle-over+example ==
 
 # various properties can be set that control how the event occurs
 # or the condition itself.

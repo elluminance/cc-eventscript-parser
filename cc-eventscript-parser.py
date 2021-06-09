@@ -3,7 +3,7 @@ import os
 import re
 import sys
 
-# ~ crosscode eventscript v1.3.0-alpha parser, by EL ~
+# ~ crosscode eventscript v1.3.0 parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 #
@@ -38,7 +38,7 @@ characterLookup: dict = {
 commentRegex = re.compile(r"^(?:#|\/\/).*")
 # matches strings of the form "import (fileName)"
 importRegex = re.compile(r"^import\s+((?:\w+[\\\/]?)*\w+)(\.json)?$", flags=re.I)
-pathFileRegex = re.compile(r"^(?P<directory>(?:\w+[\\\/]?)*)(?P<filename>\w+.json)$")
+pathFileRegex = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
 # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
 dialogueRegex = re.compile(r"(.+)\s*>\s*([A-Z_]+)[\s:](.+)$")
 # matches strings of the form "message (number)", insensitive search
@@ -243,6 +243,8 @@ def writeEventFiles(events: dict) -> list[str]:
     fileList: list[str] = []
     for eventName, eventInfo in events.items():
         filename = eventInfo["filePath"]
+        directoryMatch = re.match(pathFileRegex, filename)
+        if directoryMatch: os.makedirs(directoryMatch.group("directory"), exist_ok= True)
         if debug: print(f"DEBUG: Writing file '{filename}'.")
         if eventInfo["type"] == "standard":
             with open(filename, "w+") as jsonFile:
