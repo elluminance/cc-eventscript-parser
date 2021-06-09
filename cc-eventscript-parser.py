@@ -242,6 +242,22 @@ def readFile(inputFilename: str) -> dict[dict]:
     
     return eventDict
 
+def generatePatchFile(events: dict) -> list[dict]:
+    patchDict: list[dict] = []
+    patchDict.append({"type": "ENTER", "index": "commonEvents"})
+    for event in events.values():
+        if event["type"] in ["import", "standard"]:
+            fixedFilename = re.sub(r"^(\.\/)","mod:",event["filePath"])
+            if debug: print(f"DEBUG: Writing patch for file at '{fixedFilename}'.")
+            patchDict.append(
+                {
+                    "type": "IMPORT",
+                    "src": fixedFilename
+                }
+            ),
+    patchDict.append({"type": "EXIT"})
+    return patchDict
+
 def writeEventFiles(events: dict) -> None:
     os.makedirs("./patches/", exist_ok = True)
     for eventName, eventInfo in events.items():
@@ -256,21 +272,9 @@ def writeEventFiles(events: dict) -> None:
             if(not os.path.exists(filename)):
                 print(f"Warning: File {filename} not found for importing! Adding, but make sure to create the file before using the patch.")
 
-def writeDatabasePatchfile(events: dict) -> None:
+def writeDatabasePatchfile(patchDict: dict) -> None:
     os.makedirs("./assets/data/", exist_ok = True)
-    patchDict: list[dict] = []
-    patchDict.append({"type": "ENTER", "index": "commonEvents"})
-    for event in events.values():
-        if event["type"] in ["import", "standard"]:
-            fixedFilename = re.sub(r"^(\.\/)","mod:",event["filePath"])
-            if debug: print(f"DEBUG: Writing patch for file at '{fixedFilename}'.")
-            patchDict.append(
-                {
-                    "type": "IMPORT",
-                    "src": fixedFilename
-                }
-            ),
-    patchDict.append({"type": "EXIT"})
+    
     with open("./assets/data/database.json.patch", "w+") as patchFile:
         json.dump(patchDict, patchFile, indent = 2 if debug else None)
 
@@ -279,4 +283,4 @@ if __name__ == "__main__":
     inputFilename = sys.argv[1]
     events = readFile(inputFilename)
     eventFiles = writeEventFiles(events)
-    writeDatabasePatchfile(events)
+    writeDatabasePatchfile(generatePatchFile(events))
