@@ -120,7 +120,7 @@ def processDialogue(inputString: str) -> dict:
     return messageEvent
 
 def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
-    workingList: list[dict] = []
+    workingEvent: list[dict] = []
     ifCount: int = 0
     ifCondition: str = ""
     buffer = []
@@ -148,7 +148,7 @@ def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
                 if ifBlock["elseStep"] is not None: ifBlock["withElse"] = True
                 else: del ifBlock["elseStep"]
                 ifCount = 0
-                workingList.append(ifBlock)
+                workingEvent.append(ifBlock)
 
         # adds to string buffer for later processing
         elif ifCount > 0:
@@ -161,15 +161,15 @@ def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
                 raise Exception("Error: Multiple 'else' statements found inside of if block.")
             else:
                 hasElse = True
-                ifEventList = workingList.copy()
-                workingList = []
+                ifEventList = workingEvent.copy()
+                workingEvent = []
 
         elif match := re.match(CCEventRegex.dialogue, line):
-            workingList.append(processDialogue(line))
+            workingEvent.append(processDialogue(line))
 
         elif match := re.match(CCEventRegex.setVarBool, line):
             varName, value = match.group("varName", "value")
-            workingList.append(EventGenerators.changeBoolValue(varName, bool(value)))
+            workingEvent.append(EventGenerators.changeBoolValue(varName, bool(value)))
 
         elif match := re.match(CCEventRegex.setVarNum, line):
             varName, sign, number = match.group("varName", "operation", "value")
@@ -177,32 +177,28 @@ def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
                 newEvent = EventGenerators.changeNumValue(varName, "set", int(number))
             elif sign in ["+", "-"]:
                 newEvent = EventGenerators.changeNumValue(varName, "add", int(f"{sign}{number}"))
-            workingList.append(newEvent)
+            workingEvent.append(newEvent)
 
     if ifCount > 0:
         raise Exception("'if' found without corresponding 'endif'")
 
     if isIf: 
         if not hasElse:
-            return workingList, None
+            return workingEvent, None
         else:
-            return ifEventList, workingList
+            return ifEventList, workingEvent
 
-    return workingList
+    return workingEvent
 
 
 def handleEvent(eventStrs: list[str]) -> dict:
     event = EventGenerators.baseEvent()
     
-    messageNumber = 0
-    buffer = []
-    trackMessages = False
+    messageNumber: int = 0
+    buffer: list[str] = []
+    trackMessages: bool = False
 
     for line in eventStrs:
-        line = line.strip()
-        # skip blank lines and comments
-        if (not line) or re.match(CCEventRegex.comment, line): continue
-
         if match := re.match(CCEventRegex.eventHeader, line):
             if trackMessages:
                 workingEvent["thenStep"] = processEvents(buffer)
@@ -233,13 +229,14 @@ def handleEvent(eventStrs: list[str]) -> dict:
 
     return event
 
-def readFile(inputFilename: str) -> dict[str, dict]:
+def readFile(inputFilename: str) -> dict[str, EventItem]:
     eventDict: dict = {}
     currentEvent: str = ""
     buffer: list[str] = []
     with open(inputFilename, "r") as inputFile:
         for line in inputFile:
-            if re.match(CCEventRegex.comment, line): continue
+            line = line.strip()
+            if (not line) or re.match(CCEventRegex.comment, line): continue
             
             if match := re.match(CCEventRegex.importFile, line):
                 filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
@@ -261,7 +258,7 @@ def readFile(inputFilename: str) -> dict[str, dict]:
     
     return eventDict
 
-def generatePatchFile(events: dict) -> list[dict]:
+def generatePatchFile(events: dict[str, EventItem]) -> list[dict]:
     patchDict: list[dict] = []
     patchDict.append({"type": "ENTER", "index": "commonEvents"})
     for event in events.values():
@@ -277,7 +274,7 @@ def generatePatchFile(events: dict) -> list[dict]:
     patchDict.append({"type": "EXIT"})
     return patchDict
 
-def writeEventFiles(events: dict) -> None:
+def writeEventFiles(events: dict[str, EventItem]) -> None:
     os.makedirs("./patches/", exist_ok = True)
     for eventName, eventInfo in events.items():
         filename = eventInfo.filepath
