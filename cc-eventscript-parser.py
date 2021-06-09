@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sys
+from typing import Union
 
 # ~ crosscode eventscript v1.3.1 parser, by EL ~
 # to run:
@@ -31,6 +32,17 @@ characterLookup: dict = {
     'buggy': 'main.buggy',
     'hlin': 'main.guild-leader'
 }
+
+class EventItem:
+    eventTypes = ["import", "standard"]
+
+    def __init__(this, eventType: str, filePath: str, event: Union[list[dict], None] = None) -> None:
+        if eventType.lower() not in EventItem.eventTypes: raise Exception(f"Error: EventType {eventType} not valid!")
+        this.type = eventType.lower()
+        if not re.match(pathFileRegex, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
+        this.filepath = filePath
+        this.event = event
+
 
 #region regex
 
@@ -207,7 +219,7 @@ def handleEvent(eventStr: str) -> dict:
 
     return event
 
-def readFile(inputFilename: str) -> dict[dict]:
+def readFile(inputFilename: str) -> dict[str, dict]:
     eventDict: dict = {}
     currentEvent: str = ""
     bufferString = ""
@@ -217,28 +229,21 @@ def readFile(inputFilename: str) -> dict[dict]:
             
             if match := re.match(importRegex, line):
                 filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
-                eventDict[match.group("filename")] = {
-                    "type": "import",
-                    "filePath": filename
-                }
+                eventDict[match.group("filename")] = EventItem("import", filename)
 
             elif match := re.match(titleRegex, line):
                 if currentEvent != "": # check that the event isn't empty so it only runs if there's actually something there
-                    eventDict[currentEvent]["event"] = handleEvent(bufferString)
+                    eventDict[currentEvent].event = handleEvent(bufferString)
                 # set the current event and clear the buffer
                 currentEvent = match.group(1).replace("/",".")
                 filename = f"./patches/{currentEvent}.json"
                 if currentEvent in eventDict:
                     raise KeyError("Duplicate event name found in input file.")
-                eventDict[currentEvent] = {
-                    "type": "standard",
-                    "filePath": filename,
-                    "event": None
-                }
+                eventDict[currentEvent] = EventItem("standard", filename, None)
                 bufferString = ""
             else:
                 bufferString += line + "\n"
-        eventDict[currentEvent]["event"] = handleEvent(bufferString)
+        eventDict[currentEvent].event = handleEvent(bufferString)
     
     return eventDict
 
@@ -246,8 +251,8 @@ def generatePatchFile(events: dict) -> list[dict]:
     patchDict: list[dict] = []
     patchDict.append({"type": "ENTER", "index": "commonEvents"})
     for event in events.values():
-        if event["type"] in ["import", "standard"]:
-            fixedFilename = re.sub(r"^(\.\/)","mod:",event["filePath"])
+        if event.type in ["import", "standard"]:
+            fixedFilename = re.sub(r"^(\.\/)","mod:",event.filepath)
             if debug: print(f"DEBUG: Writing patch for file at '{fixedFilename}'.")
             patchDict.append(
                 {
@@ -261,14 +266,14 @@ def generatePatchFile(events: dict) -> list[dict]:
 def writeEventFiles(events: dict) -> None:
     os.makedirs("./patches/", exist_ok = True)
     for eventName, eventInfo in events.items():
-        filename = eventInfo["filePath"]
+        filename = eventInfo.filepath
         directoryMatch = re.match(pathFileRegex, filename)
         if directoryMatch and directoryMatch.group("directory"): os.makedirs(directoryMatch.group("directory"), exist_ok= True)
-        if eventInfo["type"] == "standard":
+        if eventInfo.type == "standard":
             if debug: print(f"DEBUG: Writing file '{filename}'.")
             with open(filename, "w+") as jsonFile:
-                json.dump({eventName: eventInfo["event"]}, jsonFile, indent = 2 if debug else None)
-        elif eventInfo["type"] == "import":
+                json.dump({eventName: eventInfo.event}, jsonFile, indent = 2 if debug else None)
+        elif eventInfo.type == "import":
             if(not os.path.exists(filename)):
                 print(f"Warning: File {filename} not found for importing! Adding, but make sure to create the file before using the patch.")
 
