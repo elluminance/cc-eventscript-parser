@@ -14,9 +14,10 @@ condition: party.alive.Apollo && plot.line >= 40000
 # all individual message events need to be titled with either "message" or "event",
 # and then the event number.
 
-Message 1
 # a chat message will be of the form 
 # characterName > EXPRESSION: message.
+
+Message 1
 Apollo > CONTENT: I am Apollo! Justice justice justice!
 Lea > CHARMED: ...!
 

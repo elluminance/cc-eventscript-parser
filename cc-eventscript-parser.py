@@ -38,6 +38,7 @@ characterLookup: dict = {
 commentRegex = re.compile(r"^(?:#|\/\/).*")
 # matches strings of the form "import (fileName)"
 importRegex = re.compile(r"^import\s+((?:\w+[\\\/]?)*\w+)(\.json)?$", flags=re.I)
+pathFileRegex = re.compile(r"^(?P<directory>(?:\w+[\\\/]?)*)(?P<filename>\w+.json)$")
 # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
 dialogueRegex = re.compile(r"(.+)\s*>\s*([A-Z_]+)[\s:](.+)$")
 # matches strings of the form "message (number)", insensitive search
@@ -206,36 +207,46 @@ def handleEvent(eventStr: str) -> dict:
 
     return event
 
-def readFile(filename: str) -> dict:
+def readFile(filename: str) -> dict[dict]:
     eventDict: dict = {}
     currentEvent: str = ""
     bufferString = ""
     with open(filename, "r") as inputFile:
         for line in inputFile:
             if re.match(commentRegex, line): continue
+            
+            if match := re.match(importRegex, line):
+                pass
 
-            if match := re.match(titleRegex, line):
+            elif match := re.match(titleRegex, line):
                 if currentEvent != "": # check that the event isn't empty so it only runs if there's actually something there
-                    eventDict[currentEvent] = handleEvent(bufferString)
+                    eventDict[currentEvent]["event"] = handleEvent(bufferString)
                 # set the current event and clear the buffer
                 currentEvent = match.group(1)
+                filename = f"./patches/{currentEvent}.json"
                 if currentEvent in eventDict:
                     raise KeyError("Duplicate event name found in input file.")
+                eventDict[currentEvent] = {
+                    "filePath": filename,
+                    "type": "standard",
+                    "event": None
+                }
                 bufferString = ""
             else:
                 bufferString += line + "\n"
-        eventDict[currentEvent] = handleEvent(bufferString)
+        eventDict[currentEvent]["event"] = handleEvent(bufferString)
     
     return eventDict
 
 def writeEventFiles(events: dict) -> list[str]:
     os.makedirs("./patches/", exist_ok = True)
     fileList: list[str] = []
-    for key, value in events.items():
-        filename = f"./patches/{key}.json"
+    for eventName, eventInfo in events.items():
+        filename = eventInfo["filePath"]
         if debug: print(f"DEBUG: Writing file '{filename}'.")
-        with open(filename, "w+") as jsonFile:
-            json.dump({key: value}, jsonFile, indent = 2 if debug else None)
+        if eventInfo["type"] == "standard":
+            with open(filename, "w+") as jsonFile:
+                json.dump({eventName: eventInfo["event"]}, jsonFile, indent = 2 if debug else None)
         fileList.append(filename)
     return fileList
 
