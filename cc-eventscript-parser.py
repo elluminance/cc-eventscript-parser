@@ -72,23 +72,6 @@ class EventItem:
 
 class EventGenerators:
     @staticmethod
-    def ifStatement(condition: str) -> dict: return {"withElse": False, "type": "IF", "condition": condition, "thenStep": []}
-
-    @staticmethod
-    def messageSet(num: int) -> dict: return EventGenerators.ifStatement(f"call.runCount == {num}")
-
-    @staticmethod
-    def changeBoolValue(variable: str, value: bool) -> dict:
-        if type(value) is not bool: raise Exception(f"Invalid value '{value}', must be boolean")
-        return {"changeType": "set","type": "CHANGE_VAR_BOOL","varName": variable, "value": value}
-
-    @staticmethod
-    def changeNumValue(variable: str, changeType: str, value: int) -> dict: 
-        if changeType not in ["set", "add"]: raise Exception(f"Error: Invalid changeType '{changeType}'")
-        if type(value) is not int: raise Exception(f"Invalid value '{value}', must be integer")
-        return {"changeType": changeType, "type": "CHANGE_VAR_NUMBER", "varName": variable, "value": value}
-
-    @staticmethod
     def baseEvent(): 
         return {
             "frequency": "REGULAR",
@@ -105,22 +88,44 @@ class EventGenerators:
             }
         }
 
+    @staticmethod
+    def ifStatement(condition: str) -> dict: return {"withElse": False, "type": "IF", "condition": condition, "thenStep": []}
+
+    @staticmethod
+    def messageSet(num: int) -> dict: return EventGenerators.ifStatement(f"call.runCount == {num}")
+
+    @staticmethod
+    def changeVarBool(variable: str, value: bool) -> dict:
+        if type(value) is not bool: raise Exception(f"Invalid value '{value}', must be boolean")
+        return {"changeType": "set","type": "CHANGE_VAR_BOOL","varName": variable, "value": value}
+
+    @staticmethod
+    def changeVarNum(variable: str, changeType: str, value: int) -> dict: 
+        if changeType not in ["set", "add"]: raise Exception(f"Error: Invalid changeType '{changeType}'")
+        if type(value) is not int: raise Exception(f"Invalid value '{value}', must be integer")
+        return {"changeType": changeType, "type": "CHANGE_VAR_NUMBER", "varName": variable, "value": value}
+
+    @staticmethod
+    def sideMessage(characterName: str, expression: str, message: str):
+        return {
+            "message": {
+                "en_US": message
+            },
+            "type": "SHOW_SIDE_MSG",
+            "person": {
+                "person": characterName,
+                "expression": expression
+            }
+        }
+
+
 
 def processDialogue(inputString: str) -> dict:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
     readableCharName, expression, message = messageMatch.group("character", "expression", "dialogue")
     charName: str = characterLookup[readableCharName.strip().lower()]
 
-    messageEvent = {
-        "message": {
-            "en_US": message.strip()
-        },
-        "type": "SHOW_SIDE_MSG",
-        "person": {
-            "person": charName,
-            "expression": expression.strip()
-        }
-    }
+    messageEvent = EventGenerators.sideMessage(charName, expression, message)
     return messageEvent
 
 
@@ -174,14 +179,14 @@ def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
 
         elif match := re.match(CCEventRegex.setVarBool, line):
             varName, value = match.group("varName", "value")
-            workingEvent.append(EventGenerators.changeBoolValue(varName, bool(value)))
+            workingEvent.append(EventGenerators.changeVarBool(varName, bool(value)))
 
         elif match := re.match(CCEventRegex.setVarNum, line):
             varName, sign, number = match.group("varName", "operation", "value")
             if sign == "=":
-                newEvent = EventGenerators.changeNumValue(varName, "set", int(number))
+                newEvent = EventGenerators.changeVarNum(varName, "set", int(number))
             elif sign in ["+", "-"]:
-                newEvent = EventGenerators.changeNumValue(varName, "add", int(f"{sign}{number}"))
+                newEvent = EventGenerators.changeVarNum(varName, "add", int(f"{sign}{number}"))
             workingEvent.append(newEvent)
 
     if ifCount > 0:
