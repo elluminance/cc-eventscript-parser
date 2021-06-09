@@ -11,7 +11,7 @@ from typing import Union, Any
 # to make a text file:
 #   see readme
 
-debug = True
+debug = False
 
 # a handy dictionary for converting a character's readable name to their internal name.
 # it's simple enough to add more characters (or even custom characters!) to this.
@@ -72,7 +72,7 @@ class EventItem:
 
 class EventGenerators:
     @staticmethod
-    def baseEvent(): 
+    def baseEvent() -> dict: 
         return {
             "frequency": "REGULAR",
             "repeat": "ONCE",
@@ -106,7 +106,7 @@ class EventGenerators:
         return {"changeType": changeType, "type": "CHANGE_VAR_NUMBER", "varName": variable, "value": value}
 
     @staticmethod
-    def sideMessage(characterName: str, expression: str, message: str):
+    def sideMessage(characterName: str, expression: str, message: str) -> dict:
         return {
             "message": {
                 "en_US": message
