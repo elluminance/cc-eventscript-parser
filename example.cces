@@ -1,7 +1,7 @@
 # lines that begin with "#" or "//" are skipped.
 import banana/h.json
 # the title/name of the event should be surrounded by "==" signs.
-== banana/apollo+battle-over+example ==
+== apollo+battle-over+example ==
 
 # various properties can be set that control how the event occurs
 # or the condition itself.
@@ -52,7 +52,7 @@ if tmp.test
         set tmp.numTest2 + 5
     # an "else" statement allows one to do "if/else" flow control.
     else
-        set tmp.numTest2 - 3
+        set tmp.numTest2 - 3 
     endif
 endif
 set tmp.numTest2 = 3
@@ -61,7 +61,7 @@ set tmp.numTest2 = 3
 condition: party.alive.Emilie
 
 Message 1:
-Emilie > CULTURE: I am French. Oui oui.
+Emilie > CULTURE: I am French. Oui oui. # yes, in-line comments are possible now!
 Lea > SMILE: ...
 
 # yes, you can skip some message/events!

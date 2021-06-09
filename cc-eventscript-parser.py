@@ -33,9 +33,10 @@ characterLookup: dict = {
     'hlin': 'main.guild-leader'
 }
 
+
 class CCEventRegex:
     # matches lines that start with "#" or "//"
-    comment = re.compile(r"^(?:#|\/\/).*")
+    comment = re.compile(r"(?<!\\)(?:#|\/\/).*")
     # matches strings of the form "import (fileName)"
     importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
     filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
@@ -57,6 +58,7 @@ class CCEventRegex:
     elseStatement = re.compile(r"^else$")
     endifStatement = re.compile(r"^endif$")
 
+
 class EventItem:
     eventTypes = ["import", "standard"]
 
@@ -66,6 +68,7 @@ class EventItem:
         if not re.match(CCEventRegex.filepath, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
         self.filepath = filePath
         self.event = event
+
 
 class EventGenerators:
     @staticmethod
@@ -102,6 +105,7 @@ class EventGenerators:
             }
         }
 
+
 def processDialogue(inputString: str) -> dict:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
     readableCharName, expression, message = messageMatch.group("character", "expression", "dialogue")
@@ -118,6 +122,7 @@ def processDialogue(inputString: str) -> dict:
         }
     }
     return messageEvent
+
 
 def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
     workingEvent: list[dict] = []
@@ -236,7 +241,8 @@ def readFile(inputFilename: str) -> dict[str, EventItem]:
     with open(inputFilename, "r") as inputFile:
         for line in inputFile:
             line = line.strip()
-            if (not line) or re.match(CCEventRegex.comment, line): continue
+            line = re.sub(CCEventRegex.comment, "", line)
+            if (not line): continue
             
             if match := re.match(CCEventRegex.importFile, line):
                 filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
