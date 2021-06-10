@@ -164,7 +164,6 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
 def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     event = Events.CommonEvent(type={"killCount": 0, "type": "BATTLE_OVER"}, loopCount = 3)
 
-    print(event.asDict())
     eventNumber: int = 0
     buffer: list[str] = []
     trackMessages: bool = False
