@@ -1,7 +1,7 @@
 from typing import Any, Union
 # a class composed of event types in CrossCode.
 
-class Event:
+class Event_Step:
     def __init__(self, type: str) -> None:
         self._type = type
 
@@ -11,7 +11,7 @@ class Event:
     def asDict(self) -> dict:
         return {"type": self.type}
 
-class _ChangeVar(Event):
+class _ChangeVar(Event_Step):
     def __init__(self, type: str, varName: str, value: Any, changeType: str) -> None:
         super().__init__(type),
         self.varName = varName
@@ -36,7 +36,7 @@ class _ChangeVar(Event):
             "changeType": self.changeType
         }
 
-class _Message(Event):
+class _Message(Event_Step):
     def __init__(self, type: str, character: str, expression: str, message: str) -> None:
         super().__init__(type)
         self.character = character
@@ -77,15 +77,15 @@ class SHOW_MSG(_Message):
     def asDict(self) -> dict:
         return super().asDict() | {"autoContinue": self.autoContinue}
 
-class IF(Event):
-    def __init__(self, condition: str, *, thenEvent: list[Event] = [], elseEvent: list[Event] = []) -> None:
+class IF(Event_Step):
+    def __init__(self, condition: str, *, thenEvent: list[Event_Step] = [], elseEvent: list[Event_Step] = []) -> None:
         super().__init__(type = "IF")
         self.condition: str = condition
-        self.thenStep: list[Event] = thenEvent
-        self.elseStep: list[Event] = elseEvent
+        self.thenStep: list[Event_Step] = thenEvent
+        self.elseStep: list[Event_Step] = elseEvent
     
     @property
-    def withElse(self) -> bool: return len(self.elseEvent) > 0
+    def withElse(self) -> bool: return len(self.elseStep) > 0
 
     def asDict(self) -> dict:        
         if self.withElse:
@@ -104,7 +104,7 @@ class IF(Event):
 
 class CommonEvent:
     def __init__(self, *, type: dict, loopCount: int, frequency: str = "REGULAR", repeat: str = "ONCE", condition: str = "true",  
-            eventType: str = "PARALLEL", overrideSideMessage: bool = False, events: Union[dict[int, Event], list[Event]] = {}) -> None:
+            eventType: str = "PARALLEL", overrideSideMessage: bool = False, events: Union[dict[int, Event_Step], list[Event_Step]] = {}) -> None:
         self.frequency: str = frequency
         self.repeat: str = repeat
         self.condition: str = condition
@@ -112,22 +112,22 @@ class CommonEvent:
         self.type: dict = type
         self.loopCount: int = loopCount
         self.overrideSideMessage: bool = overrideSideMessage
-        self.events: dict[int, Event] = {}
+        self.event: dict[int, Event_Step] = {}
         if isinstance(events, list):
-            if not all(isinstance(value, Event) for value in events):
+            if not all(isinstance(value, Event_Step) for value in events):
                 raise Exception
             for i in range(len(events)):
-                self.events[i+1] = events[i]
+                self.event[i+1] = events[i]
         elif isinstance(events, dict):
             if not (all(isinstance(key, int) for key in events.keys()) or \
-              all(isinstance(value, Event) for value in events.values())):
+              all(isinstance(value, Event_Step) for value in events.values())):
                 raise Exception
             else:
-                self.events = events
+                self.event = events
 
     @property
     def runOnTrigger(self) -> list[int]:
-        return self.events.keys()
+        return list(self.event.keys())
 
     def asDict(self):
         return {
@@ -136,7 +136,7 @@ class CommonEvent:
             "condition": self.condition,
             "eventType": self.eventType,
             "runOnTrigger": self.runOnTrigger,
-            "event": [event.asDict() for event in self.events],
+            "event": [event.asDict() for event in self.event.values()],
             "overrideSideMessage": self.overrideSideMessage,
             "loopCount": self.loopCount,
             "type": self.type

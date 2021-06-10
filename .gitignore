@@ -2,3 +2,4 @@
 /assets/data/
 /patches/
 .vscode
+__pycache__/

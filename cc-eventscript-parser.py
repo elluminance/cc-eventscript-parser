@@ -2,7 +2,7 @@ import json
 import os
 import re
 import sys
-import CCEvents 
+import CCEvents as Events
 from typing import Union, Any
 
 # ~ crosscode eventscript v1.4.0 parser, by EL ~
@@ -12,7 +12,7 @@ from typing import Union, Any
 # to make a text file:
 #   see readme
 
-debug = False
+debug = True
 
 # a handy dictionary for converting a character's readable name to their internal name.
 # it's simple enough to add more characters (or even custom characters!) to this.
@@ -63,7 +63,7 @@ class CCEventRegex:
 class EventItem:
     eventTypes = ["import", "standard"]
 
-    def __init__(self, eventType: str, filePath: str, event: Union[list[dict], None] = None) -> None:
+    def __init__(self, eventType: str, filePath: str, event: Union[Events.CommonEvent, None] = None) -> None:
         if eventType.lower() not in EventItem.eventTypes: raise Exception(f"Error: EventType {eventType} not valid!")
         self.type = eventType.lower()
         if not re.match(CCEventRegex.filepath, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
@@ -71,82 +71,40 @@ class EventItem:
         self.event = event
 
 
-class EventGenerators:
-    @staticmethod
-    def baseEvent() -> dict: 
-        return {
-            "frequency": "REGULAR",
-            "repeat": "ONCE",
-            "condition": "true",
-            "eventType": "PARALLEL",
-            "runOnTrigger": [],
-            "event": [],
-            "overrideSideMessage": False,
-            "loopCount": 3,
-            "type": {
-                "killCount": 0,
-                "type": "BATTLE_OVER"
-            }
-        }
-
-    @staticmethod
-    def ifStatement(condition: str) -> dict: return {"withElse": False, "type": "IF", "condition": condition, "thenStep": []}
-
-    @staticmethod
-    def messageSet(num: int) -> dict: return EventGenerators.ifStatement(f"call.runCount == {num}")
-
-    @staticmethod
-    def changeVarBool(variable: str, value: bool) -> dict:
-        if type(value) is not bool: raise Exception(f"Invalid value '{value}', must be boolean")
-        return {"changeType": "set","type": "CHANGE_VAR_BOOL","varName": variable, "value": value}
-
-    @staticmethod
-    def changeVarNum(variable: str, changeType: str, value: int) -> dict: 
-        if changeType not in ["set", "add"]: raise Exception(f"Error: Invalid changeType '{changeType}'")
-        if type(value) is not int: raise Exception(f"Invalid value '{value}', must be integer")
-        return {"changeType": changeType, "type": "CHANGE_VAR_NUMBER", "varName": variable, "value": value}
-
-    @staticmethod
-    def sideMessage(characterName: str, expression: str, message: str) -> dict:
-        return {
-            "message": {
-                "en_US": message
-            },
-            "type": "SHOW_SIDE_MSG",
-            "person": {
-                "person": characterName,
-                "expression": expression
-            }
-        }
 
 
 
-def processDialogue(inputString: str) -> dict:
+def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
     readableCharName, expression, message = messageMatch.group("character", "expression", "dialogue")
     charName: str = characterLookup[readableCharName.strip().lower()]
 
-    messageEvent = EventGenerators.sideMessage(charName, expression, message)
+    messageEvent = Events.SHOW_SIDE_MSG(charName, expression, message)
     return messageEvent
 
 
-def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
-    workingEvent: list[dict] = []
+def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
+    workingEvent: list[Events.Event_Step] = []
     ifCount: int = 0
     ifCondition: str = ""
+    inIf = False
     buffer = []
-    ifEventList = []
+    #ifEventList = []
     hasElse = False
 
     for line in eventStrs:
         line = line.strip()
+        
+        # if (condition)
         if match := re.match(CCEventRegex.ifStatement, line):
-            if ifCount == 0:
-                ifCondition = match.group("condition")
+            if not inIf:
+                ifEvent = Events.IF(match.group("condition"))
+                inIf = True
             else:
                 buffer.append(line)
             ifCount += 1
 
+        # endif
         elif re.match(CCEventRegex.endifStatement, line):
             if ifCount > 1:
                 buffer.append(line)
@@ -154,89 +112,87 @@ def processEvents(eventStrs: list[str], isIf: bool = False) -> list[dict]:
             elif ifCount < 1:
                 raise Exception("Error: 'endif' found outside of if block")
             else:
-                ifBlock = EventGenerators.ifStatement(ifCondition)
-                ifBlock["thenStep"], ifBlock["elseStep"] = processEvents(buffer, True)
-                if ifBlock["elseStep"] is not None: ifBlock["withElse"] = True
-                else: del ifBlock["elseStep"]
+                if hasElse: ifEvent.elseStep = processEvents(buffer)
+                else: ifEvent.thenStep = processEvents(buffer)
                 ifCount = 0
-                workingEvent.append(ifBlock)
+                workingEvent.append(ifEvent)
+                inIf = False
 
-        # adds to string buffer for later processing
-        elif ifCount > 0:
-            buffer.append(line)
-
+        # else
         elif re.match(CCEventRegex.elseStatement, line):
-            if (not isIf):
+            if (not inIf):
                 raise Exception("Error: 'else' statement found outside of if block.")
             elif hasElse:
                 raise Exception("Error: Multiple 'else' statements found inside of if block.")
+            elif ifCount > 1:
+                buffer.append(line)
             else:
                 hasElse = True
-                ifEventList = workingEvent.copy()
-                workingEvent = []
+                ifEvent.thenStep = processEvents(buffer)
+                buffer = []
+
+        # adds to string buffer for later processing
+        elif inIf:
+            buffer.append(line)
+
 
         elif match := re.match(CCEventRegex.dialogue, line):
             workingEvent.append(processDialogue(line))
 
         elif match := re.match(CCEventRegex.setVarBool, line):
             varName, value = match.group("varName", "value")
-            workingEvent.append(EventGenerators.changeVarBool(varName, bool(value)))
+            workingEvent.append(Events.CHANGE_VAR_BOOL(varName, bool(value)))
 
         elif match := re.match(CCEventRegex.setVarNum, line):
             varName, sign, number = match.group("varName", "operation", "value")
             if sign == "=":
-                newEvent = EventGenerators.changeVarNum(varName, "set", int(number))
+                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(number), "set"))
             elif sign in ["+", "-"]:
-                newEvent = EventGenerators.changeVarNum(varName, "add", int(f"{sign}{number}"))
-            workingEvent.append(newEvent)
+                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(f"{sign}{number}"), "add"))
 
-    if ifCount > 0:
+    if inIf:
         raise Exception("'if' found without corresponding 'endif'")
-
-    if isIf: 
-        if not hasElse:
-            return workingEvent, None
-        else:
-            return ifEventList, workingEvent
 
     return workingEvent
 
 
-def handleEvent(eventStrs: list[str]) -> dict:
-    event = EventGenerators.baseEvent()
+def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
+    event = Events.CommonEvent(type={"killCount": 0, "type": "BATTLE_OVER"}, loopCount = 3)
     
-    messageNumber: int = 0
+    eventNumber: int = 0
     buffer: list[str] = []
     trackMessages: bool = False
 
     for line in eventStrs:
         if match := re.match(CCEventRegex.eventHeader, line):
             if trackMessages:
-                workingEvent["thenStep"] = processEvents(buffer)
-                event["event"].append(workingEvent)
+                workingEvent.thenStep = processEvents(buffer)
+                event.event[eventNumber] = workingEvent
                 buffer = []
 
-            messageNumber += 1
-            workingEvent = EventGenerators.messageSet(messageNumber)
+            eventNumber += 1
+            workingEvent = Events.IF(f"call.runCount == {eventNumber}")
             trackMessages = True
-            event["runOnTrigger"].append(int(match.group("eventNum")))
+            #event["runOnTrigger"].append(int(match.group("eventNum")))
 
         elif trackMessages:
             buffer.append(line) 
 
         elif match := re.match(CCEventRegex.property, line):
             propertyName, value = match.group("property", "value")
-            if propertyName in ["frequency", "repeat", "condition", "eventType", "loopCount"]:
-                event[propertyName] = value
-            else: 
-                print(f"Unrecognized property \"{propertyName}\", skipping...", file = sys.stderr)
+            propertyName = propertyName.lower()
+            
+            if propertyName == "frequency": event.frequency = value
+            elif propertyName == "repeat": event.repeat = value
+            elif propertyName == "condition": event.condition = value
+            elif propertyName == "eventtype": event.eventType = value
+            elif propertyName == "loopcount": event.loopCount = int(value)
+            else: print(f"Unrecognized property \"{propertyName}\", skipping...", file = sys.stderr)
 
         else:
             print(f"Unrecognized line \"{line}\", ignoring...", file = sys.stderr)
-        
-    #workingEvent = EventGenerators.messageSet(messageNumber)
-    workingEvent["thenStep"] = processEvents(buffer)
-    event["event"].append(workingEvent)
+    workingEvent.thenStep = processEvents(buffer)
+    event.event[eventNumber] = workingEvent
 
     return event
 
@@ -295,7 +251,7 @@ def writeEventFiles(events: dict[str, EventItem]) -> None:
         if eventInfo.type == "standard":
             if debug: print(f"DEBUG: Writing file '{filename}'.")
             with open(filename, "w+") as jsonFile:
-                json.dump({eventName: eventInfo.event}, jsonFile, indent = 2 if debug else None)
+                json.dump({eventName: eventInfo.event.asDict()}, jsonFile, indent = 2 if debug else None)
         elif eventInfo.type == "import":
             if(not os.path.exists(filename)):
                 print(f"Warning: File {filename} not found for importing! Adding, but make sure to create the file before using the patch.")
