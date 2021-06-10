@@ -1,5 +1,4 @@
 # lines that begin with "#" or "//" are skipped.
-import banana/h.json
 # the title/name of the event should be surrounded by "==" signs.
 == apollo+battle-over+example ==
 

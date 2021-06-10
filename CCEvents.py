@@ -113,17 +113,18 @@ class CommonEvent:
         self.loopCount: int = loopCount
         self.overrideSideMessage: bool = overrideSideMessage
         self.event: dict[int, Event_Step] = {}
-        if isinstance(events, list):
-            if not all(isinstance(value, Event_Step) for value in events):
-                raise Exception
-            for i in range(len(events)):
-                self.event[i+1] = events[i]
-        elif isinstance(events, dict):
-            if not (all(isinstance(key, int) for key in events.keys()) or \
-              all(isinstance(value, Event_Step) for value in events.values())):
-                raise Exception
-            else:
-                self.event = events
+        if events:
+            if isinstance(events, list):
+                if not all(isinstance(value, Event_Step) for value in events):
+                    raise Exception
+                for i in range(len(events)):
+                    self.event[i+1] = events[i]
+            elif isinstance(events, dict):
+                if not (all(isinstance(key, int) for key in events.keys()) or \
+                all(isinstance(value, Event_Step) for value in events.values())):
+                    raise Exception
+                else:
+                    self.event = events
 
     @property
     def runOnTrigger(self) -> list[int]:

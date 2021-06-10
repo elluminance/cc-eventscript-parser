@@ -12,7 +12,7 @@ from typing import Union, Any
 # to make a text file:
 #   see readme
 
-debug = True
+debug = False
 
 # a handy dictionary for converting a character's readable name to their internal name.
 # it's simple enough to add more characters (or even custom characters!) to this.
@@ -86,10 +86,8 @@ def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
 def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
     workingEvent: list[Events.Event_Step] = []
     ifCount: int = 0
-    ifCondition: str = ""
     inIf = False
     buffer = []
-    #ifEventList = []
     hasElse = False
 
     for line in eventStrs:
@@ -106,17 +104,21 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
 
         # endif
         elif re.match(CCEventRegex.endifStatement, line):
+            # only count the last "endif" of a block
             if ifCount > 1:
                 buffer.append(line)
                 ifCount -= 1
+            # make sure that there is no excess endifs
             elif ifCount < 1:
                 raise Exception("Error: 'endif' found outside of if block")
+            # process if statement for the corresponding if
             else:
                 if hasElse: ifEvent.elseStep = processEvents(buffer)
                 else: ifEvent.thenStep = processEvents(buffer)
                 ifCount = 0
                 workingEvent.append(ifEvent)
                 inIf = False
+                buffer = []
 
         # else
         elif re.match(CCEventRegex.elseStatement, line):
@@ -135,14 +137,16 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
         elif inIf:
             buffer.append(line)
 
-
+        # dialogue
         elif match := re.match(CCEventRegex.dialogue, line):
             workingEvent.append(processDialogue(line))
 
+        # set var = bool
         elif match := re.match(CCEventRegex.setVarBool, line):
             varName, value = match.group("varName", "value")
             workingEvent.append(Events.CHANGE_VAR_BOOL(varName, bool(value)))
 
+        # set var +|-|= num
         elif match := re.match(CCEventRegex.setVarNum, line):
             varName, sign, number = match.group("varName", "operation", "value")
             if sign == "=":
@@ -150,6 +154,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
             elif sign in ["+", "-"]:
                 workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(f"{sign}{number}"), "add"))
 
+    #ensure that ifs are properly terminated
     if inIf:
         raise Exception("'if' found without corresponding 'endif'")
 
@@ -158,7 +163,8 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
 
 def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     event = Events.CommonEvent(type={"killCount": 0, "type": "BATTLE_OVER"}, loopCount = 3)
-    
+
+    print(event.asDict())
     eventNumber: int = 0
     buffer: list[str] = []
     trackMessages: bool = False
@@ -173,7 +179,6 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
             eventNumber += 1
             workingEvent = Events.IF(f"call.runCount == {eventNumber}")
             trackMessages = True
-            #event["runOnTrigger"].append(int(match.group("eventNum")))
 
         elif trackMessages:
             buffer.append(line) 
@@ -197,32 +202,45 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     return event
 
 def readFile(inputFilename: str) -> dict[str, EventItem]:
-    eventDict: dict = {}
-    currentEvent: str = ""
+    eventDict: dict[str, EventItem] = {}
+    eventTitle: str = ""
     buffer: list[str] = []
     with open(inputFilename, "r") as inputFile:
         for line in inputFile:
-            line = line.strip()
-            line = re.sub(CCEventRegex.comment, "", line)
+            # remove comments and strip excess whitespace
+            line = re.sub(CCEventRegex.comment, "", line).strip()
+
+            # skip blank lines
             if (not line): continue
             
+            # handle file imports
             if match := re.match(CCEventRegex.importFile, line):
                 filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
-                eventDict[match.group("filename")] = EventItem("import", filename)
+                eventTitle = match.group("filename")
+                if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
+                eventDict[eventTitle] = EventItem("import", filename)
+                eventTitle = ""
 
             elif match := re.match(CCEventRegex.title, line):
-                if currentEvent != "": # check that the event isn't empty so it only runs if there's actually something there
-                    eventDict[currentEvent].event = handleEvent(buffer)
+                # check that the event isn't empty so it only runs if there's actually something there
+                if buffer: 
+                    eventDict[eventTitle].event = handleEvent(buffer)
+                    eventTitle = ""
+
                 # set the current event and clear the buffer
-                currentEvent = match.group("eventTitle").replace("/",".")
-                filename = f"./patches/{currentEvent}.json"
-                if currentEvent in eventDict:
-                    raise KeyError("Duplicate event name found in input file.")
-                eventDict[currentEvent] = EventItem("standard", filename, None)
+                eventTitle = match.group("eventTitle").replace("/",".")
+                filename = f"./patches/{eventTitle}.json"
+                
+                if eventTitle in eventDict: raise KeyError("Duplicate event name found in input file.")
+                eventDict[eventTitle] = EventItem("standard", filename, None)
                 buffer = []
+
+            # add anything missing to buffer
             else:
                 buffer.append(line)
-        eventDict[currentEvent].event = handleEvent(buffer)
+
+        # process any final events if one is present
+        if buffer: eventDict[eventTitle].event = handleEvent(buffer)
     
     return eventDict
 
