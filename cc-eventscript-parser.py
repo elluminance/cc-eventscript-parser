@@ -5,7 +5,7 @@ import sys
 import CCEvents as Events
 from typing import Union, Any
 
-# ~ crosscode eventscript v1.4.0 parser, by EL ~
+# ~ crosscode eventscript v1.5.0 parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 #
