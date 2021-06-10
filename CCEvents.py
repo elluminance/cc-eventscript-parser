@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 # a class composed of event types in CrossCode.
 
 class Event:
@@ -101,3 +101,43 @@ class IF(Event):
                 "condition": self.condition,
                 "thenStep": [event.asDict() for event in self.thenStep],
             }
+
+class CommonEvent:
+    def __init__(self, *, type: dict, loopCount: int, frequency: str = "REGULAR", repeat: str = "ONCE", condition: str = "true",  
+            eventType: str = "PARALLEL", overrideSideMessage: bool = False, events: Union[dict[int, Event], list[Event]] = {}) -> None:
+        self.frequency: str = frequency
+        self.repeat: str = repeat
+        self.condition: str = condition
+        self.eventType: str = eventType
+        self.type: dict = type
+        self.loopCount: int = loopCount
+        self.overrideSideMessage: bool = overrideSideMessage
+        self.events: dict[int, Event] = {}
+        if isinstance(events, list):
+            if not all(isinstance(value, Event) for value in events):
+                raise Exception
+            for i in range(len(events)):
+                self.events[i+1] = events[i]
+        elif isinstance(events, dict):
+            if not (all(isinstance(key, int) for key in events.keys()) or \
+              all(isinstance(value, Event) for value in events.values())):
+                raise Exception
+            else:
+                self.events = events
+
+    @property
+    def runOnTrigger(self) -> list[int]:
+        return self.events.keys()
+
+    def asDict(self):
+        return {
+            "frequency": self.frequency,
+            "repeat": self.repeat,
+            "condition": self.condition,
+            "eventType": self.eventType,
+            "runOnTrigger": self.runOnTrigger,
+            "event": [event.asDict() for event in self.events],
+            "overrideSideMessage": self.overrideSideMessage,
+            "loopCount": self.loopCount,
+            "type": self.type
+        }
