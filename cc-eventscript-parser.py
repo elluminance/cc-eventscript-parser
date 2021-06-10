@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sys
+import CCEvents 
 from typing import Union, Any
 
 # ~ crosscode eventscript v1.4.0 parser, by EL ~
@@ -41,7 +42,7 @@ class CCEventRegex:
     importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
     filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
     # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
-    dialogue = re.compile(r"(?P<character>.+)\s*>\s*(?P<expression>[A-Z_]+)[\s:](?P<dialogue>.+)$")
+    dialogue = re.compile(r"^(?P<character>.+)\s*>\s*(?P<expression>[A-Z_]+)[\s:](?P<dialogue>.+)$")
     # matches strings of the form "message (number)", insensitive search
     eventHeader = re.compile(r"^(?:message|event) (?P<eventNum>\d+):?$", flags=re.I)
     # matches strings of the form "== title =="
