@@ -87,22 +87,17 @@ class IF(Event):
     @property
     def withElse(self) -> bool: return len(self.elseEvent) > 0
 
-    def asDict(self) -> dict:
-        thenStepList: list[dict] = []
-        elseStepList: list[dict] = []
-        for event in self.thenStep: thenStepList.append(event.asDict())
-        
+    def asDict(self) -> dict:        
         if self.withElse:
-            for event in self.elseStep: elseStepList.append(event.asDict())
             return super().asDict() | {
                 "withElse": self.withElse,
                 "condition": self.condition,
-                "thenStep": self.thenStep,
-                "elseStep": self.elseStep
+                "thenStep": [event.asDict() for event in self.thenStep],
+                "elseStep": [event.asDict() for event in self.elseStep]
             }
         else:
             return super().asDict() | {
                 "withElse": self.withElse,
                 "condition": self.condition,
-                "thenStep": self.thenStep,
+                "thenStep": [event.asDict() for event in self.thenStep],
             }
