@@ -1,4 +1,6 @@
 from typing import Any, Union
+import CCUtils
+
 # a class composed of event types in CrossCode.
 
 class Event_Step:
@@ -37,10 +39,9 @@ class _ChangeVar(Event_Step):
         }
 
 class _Message(Event_Step):
-    def __init__(self, type: str, character: str, expression: str, message: str) -> None:
+    def __init__(self, type: str, character: CCUtils.Character, message: str) -> None:
         super().__init__(type)
         self.character = character
-        self.expression = expression
         self.message = message
     
     def asDict(self) -> dict:
@@ -49,8 +50,8 @@ class _Message(Event_Step):
                 "en_US": self.message
             },
             "person": {
-                "person": self.character,
-                "expression": self.expression
+                "person": self.character.internalName,
+                "expression": self.character.expression
             }
         }
 
@@ -66,12 +67,12 @@ class CHANGE_VAR_NUMBER(_ChangeVar):
         super().__init__("CHANGE_VAR_NUMBER", varName, value, changeType)
 
 class SHOW_SIDE_MSG(_Message):
-    def __init__(self, character: str, expression: str, message: str) -> None:
-        super().__init__("SHOW_SIDE_MSG", character, expression, message)
+    def __init__(self, character: CCUtils.Character, message: str) -> None:
+        super().__init__("SHOW_SIDE_MSG", character, message)
 
 class SHOW_MSG(_Message):
-    def __init__(self, character: str, expression: str, message: str, autoContinue: bool = False) -> None:
-        super().__init__("SHOW_MSG", character, expression, message)
+    def __init__(self, character: CCUtils.Character, message: str, autoContinue: bool = False) -> None:
+        super().__init__("SHOW_MSG", character, message)
         self.autoContinue = autoContinue
     
     def asDict(self) -> dict:
@@ -101,6 +102,20 @@ class IF(Event_Step):
                 "condition": self.condition,
                 "thenStep": [event.asDict() for event in self.thenStep],
             }
+
+class WAIT(Event_Step):
+    def __init__(self, time: float, ignoreSlowdown: bool = False) -> None:
+        super().__init__("WAIT")
+        self.time = float(time)
+        self.ignoreSlowdown = ignoreSlowdown
+
+    def asDict(self) -> dict:
+        return super().asDict() | {
+            "time": self.time,
+            "ignoreSlowDown": self.ignoreSlowdown
+        }
+
+
 
 class CommonEvent:
     def __init__(self, *, type: dict, loopCount: int, frequency: str = "REGULAR", repeat: str = "ONCE", condition: str = "true",  

@@ -3,7 +3,8 @@ import os
 import re
 import sys
 import CCEvents as Events
-from typing import Union, Any
+import CCUtils
+from typing import Union
 
 # ~ crosscode eventscript v1.5.0 parser, by EL ~
 # to run:
@@ -89,10 +90,11 @@ class EventItem:
 
 def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
-    readableCharName, expression, message = messageMatch.group("character", "expression", "dialogue")
-    charName: str = characterLookup[readableCharName.strip().lower()]
+    character = CCUtils.Character(*messageMatch.group("character", "expression"))
+    message = messageMatch.group("dialogue")
+    #charName: str = characterLookup[readableCharName.strip().lower()]
 
-    messageEvent = Events.SHOW_SIDE_MSG(charName, expression, message)
+    messageEvent = Events.SHOW_SIDE_MSG(character, message)
     return messageEvent
 
 
