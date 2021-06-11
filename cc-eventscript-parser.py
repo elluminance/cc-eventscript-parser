@@ -1,7 +1,4 @@
-import json
-import os
-import re
-import sys
+import json, os, re, sys, argparse
 import CCEvents as Events
 import CCUtils
 from typing import Union
@@ -13,7 +10,7 @@ from typing import Union
 # to make a text file:
 #   see readme
 
-debug = False
+verbose = False
 
 # a handy dictionary for converting a character's readable name to their internal name.
 # it's simple enough to add more characters (or even custom characters!) to this.
@@ -273,29 +270,37 @@ def generatePatchFile(events: dict[str, EventItem]) -> list[dict]:
     patchDict.append({"type": "EXIT"})
     return patchDict
 
-def writeEventFiles(events: dict[str, EventItem]) -> None:
+def writeEventFiles(events: dict[str, EventItem], indentation = None) -> None:
     os.makedirs("./patches/", exist_ok = True)
     for eventName, eventInfo in events.items():
         filename = eventInfo.filepath
         directoryMatch = re.match(CCEventRegex.filepath, filename)
         if directoryMatch and directoryMatch.group("directory"): os.makedirs(directoryMatch.group("directory"), exist_ok= True)
         if eventInfo.type == "standard":
-            if debug: print(f"DEBUG: Writing file '{filename}'.")
+            if verbose: print(f"Writing file '{filename}'.")
             with open(filename, "w+") as jsonFile:
-                json.dump({eventName: eventInfo.event.asDict()}, jsonFile, indent = 2 if debug else None)
+                json.dump({eventName: eventInfo.event.asDict()}, jsonFile, indent = indentation)
         elif eventInfo.type == "import":
             if(not os.path.exists(filename)):
                 print(f"Warning: File {filename} not found for importing! Adding, but make sure to create the file before using the patch.")
 
-def writeDatabasePatchfile(patchDict: dict) -> None:
+def writeDatabasePatchfile(patchDict: dict, indentation = None) -> None:
     os.makedirs("./assets/data/", exist_ok = True)
-    
+    if verbose:
+        print("Writing file at ./assets/data/database.json.patch")
     with open("./assets/data/database.json.patch", "w+") as patchFile:
-        json.dump(patchDict, patchFile, indent = 2 if debug else None)
+        json.dump(patchDict, patchFile, indent = indentation)
 
 
 if __name__ == "__main__":
-    inputFilename = sys.argv[1]
+    parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
+    parser.add_argument("file", help="The eventscript file to be processed.")
+    parser.add_argument("-i", "--indent", type = int, default = None, help = "the indentation outputted files should use")
+    parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
+    args = parser.parse_args()
+    inputFilename = args.file
+    verbose = args.verbose
+    indentation = args.indent
     events = readFile(inputFilename)
-    writeEventFiles(events)
-    writeDatabasePatchfile(generatePatchFile(events))
+    writeEventFiles(events, indentation)
+    writeDatabasePatchfile(generatePatchFile(events), indentation)
