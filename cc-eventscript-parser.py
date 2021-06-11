@@ -40,6 +40,8 @@ class CCEventRegex:
     comment = re.compile(r"(?<!\\)(?:#|\/\/).*")
     # matches strings of the form "import (fileName)"
     importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
+    includeFile = re.compile(r"^include\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
+    
     filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
     # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
     dialogue = re.compile(r"^(?P<character>.+)\s*>\s*(?P<expression>[A-Z_]+)[\s:](?P<dialogue>.+)$")
@@ -61,7 +63,7 @@ class CCEventRegex:
 
 
 class EventItem:
-    eventTypes = ["import", "standard"]
+    eventTypes = ["import", "standard", "include"]
 
     def __init__(self, eventType: str, filePath: str, event: Union[Events.CommonEvent, None] = None) -> None:
         if eventType.lower() not in EventItem.eventTypes: raise Exception(f"Error: EventType {eventType} not valid!")
@@ -70,7 +72,18 @@ class EventItem:
         self.filepath = filePath
         self.event = event
 
-
+    def genPatchStep(self) -> dict:
+        fixedFilename = re.sub(r"^(\.\/)","mod:", self.filepath)
+        if self.type in ["import", "standard"]:
+            return {
+                "type": "IMPORT",
+                "src": fixedFilename
+            }
+        elif self.type == "include":
+            return {
+                "type": "INCLUDE",
+                "src": fixedFilename
+            }
 
 
 
@@ -220,6 +233,13 @@ def readFile(inputFilename: str) -> dict[str, EventItem]:
                 eventDict[eventTitle] = EventItem("import", filename)
                 eventTitle = ""
 
+            if match := re.match(CCEventRegex.includeFile, line):
+                filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
+                eventTitle = match.group("filename")
+                if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
+                eventDict[eventTitle] = EventItem("include", filename)
+                eventTitle = ""
+
             elif match := re.match(CCEventRegex.title, line):
                 # check that the event isn't empty so it only runs if there's actually something there
                 if buffer: 
@@ -247,15 +267,7 @@ def generatePatchFile(events: dict[str, EventItem]) -> list[dict]:
     patchDict: list[dict] = []
     patchDict.append({"type": "ENTER", "index": "commonEvents"})
     for event in events.values():
-        if event.type in ["import", "standard"]:
-            fixedFilename = re.sub(r"^(\.\/)","mod:",event.filepath)
-            if debug: print(f"DEBUG: Writing patch for file at '{fixedFilename}'.")
-            patchDict.append(
-                {
-                    "type": "IMPORT",
-                    "src": fixedFilename
-                }
-            ),
+        patchDict.append(event.genPatchStep())
     patchDict.append({"type": "EXIT"})
     return patchDict
 
@@ -283,5 +295,5 @@ def writeDatabasePatchfile(patchDict: dict) -> None:
 if __name__ == "__main__":
     inputFilename = sys.argv[1]
     events = readFile(inputFilename)
-    eventFiles = writeEventFiles(events)
+    writeEventFiles(events)
     writeDatabasePatchfile(generatePatchFile(events))
