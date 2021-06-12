@@ -67,3 +67,8 @@ Lea > SMILE: ...
 Message 3:
 Emilie > SUSPICIOUS: I bet you didn't even notice I said nothing special after last battle, cherie?
 Lea > SHAKE: [shakes head]
+
+== type-test ==
+condition: false
+type: SOCIAL_ACTION
+type.actionType: CONTACT, poop

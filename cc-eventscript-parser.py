@@ -54,6 +54,10 @@ class CCEventRegex:
     # matches "set (varname) (+/-/=) (number)"
     setVarNum = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*(?P<operation>=|\+|-)\s*(?P<value>\d+)$", flags=re.I)
 
+    propertyType = re.compile(r"^type(?:\.(?P<property>\S+))?\s*:\s*(?P<value>.+)", flags = re.I)
+    listOfNumbers = re.compile(r"^(?:\d+,\s*)+")
+    listOfStrings = re.compile(r"^(?:\S+,\s*)+")
+
     # matches "if (condition)", "else", and  "endif" respectively
     ifStatement = re.compile(r"^if (?P<condition>.+)$")
     elseStatement = re.compile(r"^else$")
@@ -89,7 +93,6 @@ def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
     character = CCUtils.Character(*messageMatch.group("character", "expression"))
     message = messageMatch.group("dialogue")
-    #charName: str = characterLookup[readableCharName.strip().lower()]
 
     messageEvent = Events.SHOW_SIDE_MSG(character, message)
     return messageEvent
@@ -98,9 +101,9 @@ def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
 def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
     workingEvent: list[Events.Event_Step] = []
     ifCount: int = 0
-    inIf = False
-    buffer = []
-    hasElse = False
+    inIf: bool = False
+    hasElse: bool = False
+    buffer: list[str] = []
 
     for line in eventStrs:
         line = line.strip()
@@ -174,11 +177,12 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
 
 
 def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
-    event = Events.CommonEvent(type={"killCount": 0, "type": "BATTLE_OVER"}, loopCount = 3)
+    event = Events.CommonEvent(type={}, loopCount = 3)
 
     eventNumber: int = 0
     buffer: list[str] = []
     trackMessages: bool = False
+    workingEvent = {}
 
     for line in eventStrs:
         if match := re.match(CCEventRegex.eventHeader, line):
@@ -194,23 +198,47 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
         elif trackMessages:
             buffer.append(line) 
 
+        elif match := re.match(CCEventRegex.propertyType, line):
+            propertyName, propertyValue = match.group("property", "value")
+            propertyValue = propertyValue.strip()
+            if propertyName is not None:
+                
+                if re.match(CCEventRegex.listOfNumbers, propertyValue):
+                    typeValueList = propertyValue.split(",")
+                    event.type[propertyName] = [int(value) for value in typeValueList]
+
+                elif re.match(CCEventRegex.listOfStrings, propertyValue):
+                    typeValueList = propertyValue.split(",")
+                    event.type[propertyName] = [value.strip() for value in typeValueList]
+
+                elif re.match(r"^\d+$", propertyValue):
+                    event.type[propertyName] = int(propertyValue)
+                else:
+                    event.type[propertyName] = propertyValue
+                    
+            else:
+                event.type["type"] = propertyValue
+
         elif match := re.match(CCEventRegex.property, line):
-            propertyName, value = match.group("property", "value")
+            propertyName, propertyValue = match.group("property", "value")
             propertyName = propertyName.lower()
             
-            if propertyName == "frequency": event.frequency = value
-            elif propertyName == "repeat": event.repeat = value
-            elif propertyName == "condition": event.condition = value
-            elif propertyName == "eventtype": event.eventType = value
-            elif propertyName == "loopcount": event.loopCount = int(value)
+            if propertyName == "frequency": event.frequency = propertyValue
+            elif propertyName == "repeat": event.repeat = propertyValue
+            elif propertyName == "condition": event.condition = propertyValue
+            elif propertyName == "eventtype": event.eventType = propertyValue
+            elif propertyName == "loopcount": event.loopCount = int(propertyValue)
             else: print(f"Unrecognized property \"{propertyName}\", skipping...", file = sys.stderr)
 
         else:
             print(f"Unrecognized line \"{line}\", ignoring...", file = sys.stderr)
-    workingEvent.thenStep = processEvents(buffer)
-    event.event[eventNumber] = workingEvent
-
+    if buffer:
+        workingEvent.thenStep = processEvents(buffer)
+        event.event[eventNumber] = workingEvent
+    if event.type == {}:
+        event.type = {"killCount": 0, "type": "BATTLE_OVER"}
     return event
+
 
 def readFile(inputFilename: str) -> dict[str, EventItem]:
     eventDict: dict[str, EventItem] = {}
@@ -292,7 +320,7 @@ def writeDatabasePatchfile(patchDict: dict, indentation = None) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
     parser.add_argument("file", help="The eventscript file to be processed.")
-    parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
+    parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
     parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
     args = parser.parse_args()
     inputFilename = args.file
