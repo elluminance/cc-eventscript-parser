@@ -1,7 +1,6 @@
-
 class Character:
     @staticmethod
-    def characterLookup(charName: str):
+    def characterLookup(charName: str) -> str:
         match charName.lower():
             case 'lea': return 'main.lea',
             case 'emilie': return 'main.emilie',
