@@ -280,14 +280,11 @@ def writeEventFiles(events: dict[str, EventItem], indentation = None) -> None:
             if verbose: print(f"Writing file '{filename}'.")
             with open(filename, "w+") as jsonFile:
                 json.dump({eventName: eventInfo.event.asDict()}, jsonFile, indent = indentation)
-        elif eventInfo.type == "import":
-            if(not os.path.exists(filename)):
-                print(f"Warning: File {filename} not found for importing! Adding, but make sure to create the file before using the patch.")
 
 def writeDatabasePatchfile(patchDict: dict, indentation = None) -> None:
     os.makedirs("./assets/data/", exist_ok = True)
     if verbose:
-        print("Writing file at ./assets/data/database.json.patch")
+        print("Writing patch file at ./assets/data/database.json.patch")
     with open("./assets/data/database.json.patch", "w+") as patchFile:
         json.dump(patchDict, patchFile, indent = indentation)
 
@@ -295,12 +292,12 @@ def writeDatabasePatchfile(patchDict: dict, indentation = None) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
     parser.add_argument("file", help="The eventscript file to be processed.")
-    parser.add_argument("-i", "--indent", type = int, default = None, help = "the indentation outputted files should use")
+    parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
     parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
     args = parser.parse_args()
     inputFilename = args.file
     verbose = args.verbose
-    indentation = args.indent
+    indentation = args.indentation
     events = readFile(inputFilename)
     writeEventFiles(events, indentation)
     writeDatabasePatchfile(generatePatchFile(events), indentation)
