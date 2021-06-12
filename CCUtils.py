@@ -18,9 +18,15 @@ class Character:
     }
 
     def __init__(self, name: str, expression: str, internalName: str = None) -> None:
-        self.name = name
-        self.expression = expression
+        self.name: str = name
+        self.expression: str = expression
         if internalName is None:
-            self.internalName = Character.characterLookup[self.name.strip().lower()]
+            self.internalName: str = Character.characterLookup[self.name.strip().lower()]
         else:
-            self.internalName = internalName
+            self.internalName: str = internalName
+    
+    def toPersonDict(self) -> dict:
+        return {
+            "person": self.internalName,
+            "expression": self.expression
+        }

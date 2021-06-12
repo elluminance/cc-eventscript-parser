@@ -298,6 +298,8 @@ if __name__ == "__main__":
     inputFilename = args.file
     verbose = args.verbose
     indentation = args.indentation
+
+    
     events = readFile(inputFilename)
     writeEventFiles(events, indentation)
     writeDatabasePatchfile(generatePatchFile(events), indentation)

@@ -1,5 +1,5 @@
 from typing import Any, Union
-import CCUtils
+from CCUtils import Character
 
 # a class composed of event types in CrossCode.
 
@@ -39,7 +39,7 @@ class _ChangeVar(Event_Step):
         }
 
 class _Message(Event_Step):
-    def __init__(self, type: str, character: CCUtils.Character, message: str) -> None:
+    def __init__(self, type: str, character: Character, message: str) -> None:
         super().__init__(type)
         self.character = character
         self.message = message
@@ -49,10 +49,7 @@ class _Message(Event_Step):
             "message": {
                 "en_US": self.message
             },
-            "person": {
-                "person": self.character.internalName,
-                "expression": self.character.expression
-            }
+            "person": self.character.toPersonDict()
         }
 
 class CHANGE_VAR_BOOL(_ChangeVar):
@@ -67,11 +64,11 @@ class CHANGE_VAR_NUMBER(_ChangeVar):
         super().__init__("CHANGE_VAR_NUMBER", varName, value, changeType)
 
 class SHOW_SIDE_MSG(_Message):
-    def __init__(self, character: CCUtils.Character, message: str) -> None:
+    def __init__(self, character: Character, message: str) -> None:
         super().__init__("SHOW_SIDE_MSG", character, message)
 
 class SHOW_MSG(_Message):
-    def __init__(self, character: CCUtils.Character, message: str, autoContinue: bool = False) -> None:
+    def __init__(self, character: Character, message: str, autoContinue: bool = False) -> None:
         super().__init__("SHOW_MSG", character, message)
         self.autoContinue = autoContinue
     
@@ -114,6 +111,34 @@ class WAIT(Event_Step):
             "time": self.time,
             "ignoreSlowDown": self.ignoreSlowdown
         }
+
+class ADD_MSG_PERSON(Event_Step):
+    def __init__(self, character: Character, side: str, clearSide: bool = False, order: int = 0, customName: str = None) -> None:
+        super().__init__("ADD_MSG_PERSON")
+        self.character = character
+        self.side = side
+        self.clearSide = clearSide
+        self.customName = customName
+        self.order = order
+
+    @property
+    def side(self):
+        return self._side
+
+    @side.setter
+    def side(self, value):
+        if value in ["LEFT", "RIGHT"]:
+            self._side = value
+        else:
+            raise ValueError(f"Invalid side '{value}'")
+
+    def asDict(self) -> dict:
+        return super().asDict() | {
+            "side": self.side,
+            "order": self.order,
+            "clearSide": self.clearSide,
+            "person": self.character.toPersonDict()
+        } | {"name": {"en_US": self.customName}} if self.customName is not None else {}
 
 
 
