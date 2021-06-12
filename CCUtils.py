@@ -1,6 +1,25 @@
 
 class Character:
-    characterLookup: dict = {
+    @staticmethod
+    def characterLookup(charName: str):
+        match charName.lower():
+            case 'lea': return 'main.lea',
+            case 'emilie': return 'main.emilie',
+            case 'c\'tron': return 'main.glasses',
+            case 'apollo': return 'antagonists.fancyguy',
+            case 'joern': return 'antagonists.sidekick',
+            case 'shizuka': return 'main.shizuka',
+            case 'lukas' | 'schneider': return 'main.schneider',
+            case 'luke': return 'main.luke',
+            case 'sergey': return 'main.sergey',
+            case 'sergey (avatar)': return 'main.sergey-av',
+            case 'beowulf': return 'main.grumpy',
+            case 'buggy': return 'main.buggy',
+            case 'hlin': return 'main.guild-leader'
+            case _: return charName
+
+
+    {
         'lea': 'main.lea',
         'emilie': 'main.emilie',
         'c\'tron': 'main.glasses',
@@ -21,7 +40,7 @@ class Character:
         self.name: str = name
         self.expression: str = expression
         if internalName is None:
-            self.internalName: str = Character.characterLookup[self.name.strip().lower()]
+            self.internalName: str = Character.characterLookup(self.name.strip().lower())
         else:
             self.internalName: str = internalName
     

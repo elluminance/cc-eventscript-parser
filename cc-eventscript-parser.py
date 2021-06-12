@@ -1,37 +1,16 @@
-import json, os, re, sys, argparse
+import json
+import os, re, sys, argparse
 import CCEvents as Events
 import CCUtils
-from typing import Union
 
 # ~ crosscode eventscript v1.5.0 parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
-#
+# REQUIRES PYTHON 3.10 OR ABOVE!
 # to make a text file:
 #   see readme
 
 verbose = False
-
-# a handy dictionary for converting a character's readable name to their internal name.
-# it's simple enough to add more characters (or even custom characters!) to this.
-# just add a new key of the "readable" name (in lowercase), and the corresponding internal name.
-characterLookup: dict = {
-    'lea': 'main.lea',
-    'emilie': 'main.emilie',
-    'c\'tron': 'main.glasses',
-    'apollo': 'antagonists.fancyguy',
-    'joern': 'antagonists.sidekick',
-    'shizuka': 'main.shizuka',
-    'lukas': 'main.schneider',
-    'schneider': 'main.schneider',
-    'luke': 'main.luke',
-    'sergey': 'main.sergey',
-    'sergey (avatar)': 'main.sergey-av',
-    'beowulf': 'main.grumpy',
-    'buggy': 'main.buggy',
-    'hlin': 'main.guild-leader'
-}
-
 
 class CCEventRegex:
     # matches lines that start with "#" or "//"
@@ -67,7 +46,7 @@ class CCEventRegex:
 class EventItem:
     eventTypes = ["import", "standard", "include"]
 
-    def __init__(self, eventType: str, filePath: str, event: Union[Events.CommonEvent, None] = None) -> None:
+    def __init__(self, eventType: str, filePath: str, event: Events.CommonEvent | None = None) -> None:
         if eventType.lower() not in EventItem.eventTypes: raise Exception(f"Error: EventType {eventType} not valid!")
         self.type = eventType.lower()
         if not re.match(CCEventRegex.filepath, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
@@ -76,17 +55,17 @@ class EventItem:
 
     def genPatchStep(self) -> dict:
         fixedFilename = re.sub(r"^(\.\/)","mod:", self.filepath)
-        if self.type in ["import", "standard"]:
-            return {
-                "type": "IMPORT",
-                "src": fixedFilename
-            }
-        elif self.type == "include":
-            return {
-                "type": "INCLUDE",
-                "src": fixedFilename
-            }
-
+        match self.type:
+            case "import" | "standard":
+                return {
+                    "type": "IMPORT",
+                    "src": fixedFilename
+                }
+            case "include":
+                return {
+                    "type": "INCLUDE",
+                    "src": fixedFilename
+                }
 
 
 def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:

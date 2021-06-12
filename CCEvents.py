@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 from CCUtils import Character
 
 # a class composed of event types in CrossCode.
@@ -144,7 +144,7 @@ class ADD_MSG_PERSON(Event_Step):
 
 class CommonEvent:
     def __init__(self, *, type: dict, loopCount: int, frequency: str = "REGULAR", repeat: str = "ONCE", condition: str = "true",  
-            eventType: str = "PARALLEL", overrideSideMessage: bool = False, events: Union[dict[int, Event_Step], list[Event_Step]] = {}) -> None:
+            eventType: str = "PARALLEL", overrideSideMessage: bool = False, events: dict[int, Event_Step] | list[Event_Step] = {}) -> None:
         self.frequency: str = frequency
         self.repeat: str = repeat
         self.condition: str = condition
