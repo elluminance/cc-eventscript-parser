@@ -20,7 +20,7 @@ class CCEventRegex:
     importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
     includeFile = re.compile(r"^include\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
     
-    filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+.json)$")
+    filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+)$")
     # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
     dialogue = re.compile(r"^(?P<character>.+)\s*>\s*(?P<expression>[A-Z\d_]+)[\s:](?P<dialogue>.+)$")
     # matches strings of the form "message (number)", insensitive search
@@ -295,11 +295,13 @@ def writeEventFiles(events: dict[str, EventItem], indentation = None) -> None:
             with open(filename, "w+") as jsonFile:
                 json.dump({eventName: eventInfo.event.asDict()}, jsonFile, indent = indentation)
 
-def writeDatabasePatchfile(patchDict: dict, indentation = None) -> None:
-    os.makedirs("./assets/data/", exist_ok = True)
+def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -> None:
+    filename = filename.strip()
+    fileMatch = re.match(CCEventRegex.filepath, filename)
+    os.makedirs(fileMatch.group("directory"), exist_ok = True)
     if verbose:
         print("Writing patch file at ./assets/data/database.json.patch")
-    with open("./assets/data/database.json.patch", "w+") as patchFile:
+    with open(filename, "w+") as patchFile:
         json.dump(patchDict, patchFile, indent = indentation)
 
 
@@ -308,14 +310,17 @@ if __name__ == "__main__":
     parser.add_argument("file", help="The eventscript file(s) to be processed.", nargs = "+")
     parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
     parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
-    parser.add_argument("--no-patch-file", action = "store_false", dest = "genPatch", help = "do not generate a 'database.json.patch' file")
+    databaseGroup = parser.add_mutually_exclusive_group()
+    databaseGroup.add_argument("--no-patch-file", action = "store_false", dest = "genPatch", help = "do not generate a 'database.json.patch' file")
+    databaseGroup.add_argument("-p", "--patch-file", default = "./assets/data/database.json.patch", dest = "databaseFile", metavar = "DATABASE", help = "the location of the database patch file")
 
     args = parser.parse_args()
     inputFilename = args.file
     verbose = args.verbose
     indentation = args.indentation
     genPatch = args.genPatch
+    databasePatchFilename = args.databaseFile
 
     events = parseFiles(inputFilename)
     writeEventFiles(events, indentation)
-    if genPatch: writeDatabasePatchfile(generatePatchFile(events), indentation)
+    if genPatch: writeDatabasePatchfile(generatePatchFile(events), databasePatchFilename, indentation)
