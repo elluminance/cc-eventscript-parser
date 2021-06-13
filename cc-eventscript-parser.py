@@ -48,7 +48,6 @@ class EventItemType(Enum):
     IMPORT = 2
     INCLUDE = 3
 
-
 class EventItem:
     def __init__(self, eventType, filePath: str, event: Events.CommonEvent | None = None) -> None:
         self.eventType = eventType
@@ -309,12 +308,14 @@ if __name__ == "__main__":
     parser.add_argument("file", help="The eventscript file(s) to be processed.", nargs = "+")
     parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
     parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
+    parser.add_argument("--no-patch-file", action = "store_false", dest = "genPatch", help = "do not generate a 'database.json.patch' file")
+
     args = parser.parse_args()
     inputFilename = args.file
     verbose = args.verbose
     indentation = args.indentation
+    genPatch = args.genPatch
 
-    
     events = parseFiles(inputFilename)
     writeEventFiles(events, indentation)
-    writeDatabasePatchfile(generatePatchFile(events), indentation)
+    if genPatch: writeDatabasePatchfile(generatePatchFile(events), indentation)
