@@ -224,54 +224,57 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     return event
 
 
-def readFile(inputFilename: str) -> dict[str, EventItem]:
+def parseFiles(inputFilenames: list[str]) -> dict[str, EventItem]:
     eventDict: dict[str, EventItem] = {}
-    eventTitle: str = ""
-    buffer: list[str] = []
-    with open(inputFilename, "r") as inputFile:
-        for line in inputFile:
-            # remove comments and strip excess whitespace
-            line = re.sub(CCEventRegex.comment, "", line).strip()
+    def readFile(filename):
+        nonlocal eventDict
+        eventTitle: str = ""
+        buffer: list[str] = []
+        with open(filename, "r") as inputFile:
+            for line in inputFile:
+                # remove comments and strip excess whitespace
+                line = re.sub(CCEventRegex.comment, "", line).strip()
 
-            # skip blank lines
-            if (not line): continue
-            
-            # handle file imports
-            if match := re.match(CCEventRegex.importFile, line):
-                filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
-                eventTitle = match.group("filename")
-                if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
-                eventDict[eventTitle] = EventItem(EventItemType.IMPORT, filename)
-                eventTitle = ""
-
-            if match := re.match(CCEventRegex.includeFile, line):
-                filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
-                eventTitle = match.group("filename")
-                if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
-                eventDict[eventTitle] = EventItem(EventItemType.INCLUDE, filename)
-                eventTitle = ""
-
-            elif match := re.match(CCEventRegex.title, line):
-                # check that the event isn't empty so it only runs if there's actually something there
-                if buffer: 
-                    eventDict[eventTitle].event = handleEvent(buffer)
+                # skip blank lines
+                if (not line): continue
+                
+                # handle file imports
+                if match := re.match(CCEventRegex.importFile, line):
+                    filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
+                    eventTitle = match.group("filename")
+                    if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
+                    eventDict[eventTitle] = EventItem(EventItemType.IMPORT, filename)
                     eventTitle = ""
 
-                # set the current event and clear the buffer
-                eventTitle = match.group("eventTitle").replace("/",".")
-                filename = f"./patches/{eventTitle}.json"
-                
-                if eventTitle in eventDict: raise KeyError("Duplicate event name found in input file.")
-                eventDict[eventTitle] = EventItem(EventItemType.STANDARD_EVENT, filename, None)
-                buffer = []
+                if match := re.match(CCEventRegex.includeFile, line):
+                    filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
+                    eventTitle = match.group("filename")
+                    if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
+                    eventDict[eventTitle] = EventItem(EventItemType.INCLUDE, filename)
+                    eventTitle = ""
 
-            # add anything missing to buffer
-            else:
-                buffer.append(line)
+                elif match := re.match(CCEventRegex.title, line):
+                    # check that the event isn't empty so it only runs if there's actually something there
+                    if buffer: 
+                        eventDict[eventTitle].event = handleEvent(buffer)
+                        eventTitle = ""
 
-        # process any final events if one is present
-        if buffer: eventDict[eventTitle].event = handleEvent(buffer)
-    
+                    # set the current event and clear the buffer
+                    eventTitle = match.group("eventTitle").replace("/",".")
+                    filename = f"./patches/{eventTitle}.json"
+                    
+                    if eventTitle in eventDict: raise KeyError("Duplicate event name found in input file.")
+                    eventDict[eventTitle] = EventItem(EventItemType.STANDARD_EVENT, filename, None)
+                    buffer = []
+
+                # add anything missing to buffer
+                else:
+                    buffer.append(line)
+
+            # process any final events if one is present
+            if buffer: eventDict[eventTitle].event = handleEvent(buffer)
+    for filename in inputFilenames:
+        readFile(filename)
     return eventDict
 
 def generatePatchFile(events: dict[str, EventItem]) -> list[dict]:
@@ -303,7 +306,7 @@ def writeDatabasePatchfile(patchDict: dict, indentation = None) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
-    parser.add_argument("file", help="The eventscript file to be processed.")
+    parser.add_argument("file", help="The eventscript file(s) to be processed.", nargs = "+")
     parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
     parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
     args = parser.parse_args()
@@ -312,6 +315,6 @@ if __name__ == "__main__":
     indentation = args.indentation
 
     
-    events = readFile(inputFilename)
+    events = parseFiles(inputFilename)
     writeEventFiles(events, indentation)
     writeDatabasePatchfile(generatePatchFile(events), indentation)
