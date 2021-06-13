@@ -2,6 +2,7 @@ import json
 import os, re, sys, argparse
 import CCEvents as Events
 import CCUtils
+from enum import Enum
 
 # ~ crosscode eventscript v1.5.0 parser, by EL ~
 # to run:
@@ -42,30 +43,34 @@ class CCEventRegex:
     elseStatement = re.compile(r"^else$")
     endifStatement = re.compile(r"^endif$")
 
+class EventItemType(Enum):
+    STANDARD_EVENT = 1
+    IMPORT = 2
+    INCLUDE = 3
+
 
 class EventItem:
-    eventTypes = ["import", "standard", "include"]
-
-    def __init__(self, eventType: str, filePath: str, event: Events.CommonEvent | None = None) -> None:
-        if eventType.lower() not in EventItem.eventTypes: raise Exception(f"Error: EventType {eventType} not valid!")
-        self.type = eventType.lower()
+    def __init__(self, eventType, filePath: str, event: Events.CommonEvent | None = None) -> None:
+        self.eventType = eventType
         if not re.match(CCEventRegex.filepath, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
         self.filepath = filePath
         self.event = event
 
     def genPatchStep(self) -> dict:
         fixedFilename = re.sub(r"^(\.\/)","mod:", self.filepath)
-        match self.type:
-            case "import" | "standard":
+        match self.eventType:
+            case EventItemType.IMPORT | EventItemType.STANDARD_EVENT:
                 return {
                     "type": "IMPORT",
                     "src": fixedFilename
                 }
-            case "include":
+            case EventItemType.INCLUDE:
                 return {
                     "type": "INCLUDE",
                     "src": fixedFilename
                 }
+            case _:
+                raise Exception("Unkown patch type!")
 
 
 def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
@@ -236,14 +241,14 @@ def readFile(inputFilename: str) -> dict[str, EventItem]:
                 filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
                 eventTitle = match.group("filename")
                 if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
-                eventDict[eventTitle] = EventItem("import", filename)
+                eventDict[eventTitle] = EventItem(EventItemType.IMPORT, filename)
                 eventTitle = ""
 
             if match := re.match(CCEventRegex.includeFile, line):
                 filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
                 eventTitle = match.group("filename")
                 if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
-                eventDict[eventTitle] = EventItem("include", filename)
+                eventDict[eventTitle] = EventItem(EventItemType.INCLUDE, filename)
                 eventTitle = ""
 
             elif match := re.match(CCEventRegex.title, line):
@@ -257,7 +262,7 @@ def readFile(inputFilename: str) -> dict[str, EventItem]:
                 filename = f"./patches/{eventTitle}.json"
                 
                 if eventTitle in eventDict: raise KeyError("Duplicate event name found in input file.")
-                eventDict[eventTitle] = EventItem("standard", filename, None)
+                eventDict[eventTitle] = EventItem(EventItemType.STANDARD_EVENT, filename, None)
                 buffer = []
 
             # add anything missing to buffer
@@ -283,7 +288,7 @@ def writeEventFiles(events: dict[str, EventItem], indentation = None) -> None:
         filename = eventInfo.filepath
         directoryMatch = re.match(CCEventRegex.filepath, filename)
         if directoryMatch and directoryMatch.group("directory"): os.makedirs(directoryMatch.group("directory"), exist_ok= True)
-        if eventInfo.type == "standard":
+        if eventInfo.eventType == EventItemType.STANDARD_EVENT:
             if verbose: print(f"Writing file '{filename}'.")
             with open(filename, "w+") as jsonFile:
                 json.dump({eventName: eventInfo.event.asDict()}, jsonFile, indent = indentation)
