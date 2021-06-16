@@ -69,7 +69,7 @@ class EventItem:
                     "src": fixedFilename
                 }
             case _:
-                raise Exception("Unkown patch type!")
+                raise Exception("Unknown patch type!")
 
 
 def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
