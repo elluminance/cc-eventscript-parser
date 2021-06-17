@@ -13,6 +13,8 @@ from enum import Enum
 
 verbose = False
 
+class CCES_Exception(Exception): pass
+
 class CCEventRegex:
     # matches lines that start with "#" or "//"
     comment = re.compile(r"(?<!\\)(?:#|\/\/).*")
@@ -39,9 +41,9 @@ class CCEventRegex:
     listOfStrings = re.compile(r"^(?:\S+,\s*)+")
 
     # matches "if (condition)", "else", and  "endif" respectively
-    ifStatement = re.compile(r"^if (?P<condition>.+)$")
-    elseStatement = re.compile(r"^else$")
-    endifStatement = re.compile(r"^endif$")
+    ifStatement = re.compile(r"^if (?P<condition>.+)", flags=re.I)
+    elseStatement = re.compile(r"^else$", flags=re.I)
+    endifStatement = re.compile(r"^endif$", flags=re.I)
 
 class EventItemType(Enum):
     STANDARD_EVENT = 1
@@ -51,7 +53,7 @@ class EventItemType(Enum):
 class EventItem:
     def __init__(self, eventType, filePath: str, event: Events.CommonEvent | None = None) -> None:
         self.eventType = eventType
-        if not re.match(CCEventRegex.filepath, filePath): raise Exception(f"Error: Invalid file path {filePath}!")
+        if not re.match(CCEventRegex.filepath, filePath): raise CCES_Exception(f"Error: Invalid file path {filePath}!")
         self.filepath = filePath
         self.event = event
 
@@ -69,7 +71,7 @@ class EventItem:
                     "src": fixedFilename
                 }
             case _:
-                raise Exception("Unknown patch type!")
+                raise CCES_Exception("Unknown patch type!")
 
 
 def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
@@ -108,7 +110,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
                 ifCount -= 1
             # make sure that there is no excess endifs
             elif ifCount < 1:
-                raise Exception("Error: 'endif' found outside of if block")
+                raise CCES_Exception("Error: 'endif' found outside of if block")
             # process if statement for the corresponding if
             else:
                 if hasElse: ifEvent.elseStep = processEvents(buffer)
@@ -121,11 +123,11 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
         # else
         elif re.match(CCEventRegex.elseStatement, line):
             if (not inIf):
-                raise Exception("Error: 'else' statement found outside of if block.")
-            elif hasElse:
-                raise Exception("Error: Multiple 'else' statements found inside of if block.")
+                raise CCES_Exception("Error: 'else' statement found outside of if block.")
             elif ifCount > 1:
                 buffer.append(line)
+            elif hasElse:
+                raise CCES_Exception("Error: Multiple 'else' statements found inside of if block.")
             else:
                 hasElse = True
                 ifEvent.thenStep = processEvents(buffer)
@@ -154,7 +156,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
 
     #ensure that ifs are properly terminated
     if inIf:
-        raise Exception("'if' found without corresponding 'endif'")
+        raise CCES_Exception("'if' found without corresponding 'endif'")
 
     return workingEvent
 
@@ -223,13 +225,14 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     return event
 
 
-def parseFiles(inputFilenames: list[str]) -> dict[str, EventItem]:
+def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[str, EventItem]:
     eventDict: dict[str, EventItem] = {}
+    filelist: list[str] = []
     def readFile(filename):
         nonlocal eventDict
         eventTitle: str = ""
         buffer: list[str] = []
-        with open(filename, "r") as inputFile:
+        with open(filename, "r", encoding='utf8') as inputFile:
             for line in inputFile:
                 # remove comments and strip excess whitespace
                 line = re.sub(CCEventRegex.comment, "", line).strip()
@@ -272,8 +275,19 @@ def parseFiles(inputFilenames: list[str]) -> dict[str, EventItem]:
 
             # process any final events if one is present
             if buffer: eventDict[eventTitle].event = handleEvent(buffer)
-    for filename in inputFilenames:
-        readFile(filename)
+    
+    
+    if runRecursively:
+        for item in os.listdir(inputFilenames[0]):
+            if re.match(r".*\.cces", item):
+                filelist.append(f"{inputFilenames[0]}/{item}")
+    else:
+        filelist = inputFilenames
+    for filename in filelist:
+        try: 
+            readFile(filename)
+        except CCES_Exception as e:
+            raise Exception(f"Error in {filename}: " + str(*e.args))
     return eventDict
 
 def generatePatchFile(events: dict[str, EventItem]) -> list[dict]:
@@ -307,20 +321,21 @@ def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
-    parser.add_argument("file", help="The eventscript file(s) to be processed.", nargs = "+")
+    parser.add_argument("file", help="The eventscript file(s) to be processed. A file path if -r is enabled.", nargs = "+")
     parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
     parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
+    parser.add_argument("-r", action = "store_true", dest = "recursive", help = "will parse all files in a single directory ending in '.cces', rather than a single file. ")
+    
     databaseGroup = parser.add_mutually_exclusive_group()
     databaseGroup.add_argument("--no-patch-file", action = "store_false", dest = "genPatch", help = "do not generate a 'database.json.patch' file")
     databaseGroup.add_argument("-p", "--patch-file", default = "./assets/data/database.json.patch", dest = "databaseFile", metavar = "DATABASE", help = "the location of the database patch file")
 
-    args = parser.parse_args()
-    inputFilename = args.file
-    verbose = args.verbose
-    indentation = args.indentation
-    genPatch = args.genPatch
-    databasePatchFilename = args.databaseFile
 
-    events = parseFiles(inputFilename)
-    writeEventFiles(events, indentation)
-    if genPatch: writeDatabasePatchfile(generatePatchFile(events), databasePatchFilename, indentation)
+
+    args = parser.parse_args()
+    inputFiles = args.file
+    verbose = args.verbose
+
+    events = parseFiles(inputFiles, args.recursive)
+    writeEventFiles(events, args.indentation)
+    if args.genPatch: writeDatabasePatchfile(generatePatchFile(events), args.databaseFile, args.indentation)
