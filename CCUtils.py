@@ -3,7 +3,7 @@ class Character:
     def characterLookup(charName: str) -> str:
         match charName.lower():
             case 'lea': return 'main.lea',
-            case 'emilie': return 'main.emilie',
+            case 'emilie' | "emilinator": return 'main.emilie',
             case 'c\'tron': return 'main.glasses',
             case 'apollo': return 'antagonists.fancyguy',
             case 'joern': return 'antagonists.sidekick',
