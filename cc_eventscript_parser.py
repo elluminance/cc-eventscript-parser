@@ -32,9 +32,9 @@ class CCEventRegex:
     # matches strings of the form "(key): (value)"
     property = re.compile(r"^(?P<property>\w+)\s*:\s*(?P<value>.+)$")
     # matches "set (varname) (true/false)"
-    setVarBool = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*=\s*(?P<value>true|false)$", flags=re.I)
+    setVarBool = re.compile(r"^set\s+(?P<varName>\S+)\s*=\s*(?P<value>true|false)$", flags=re.I)
     # matches "set (varname) (+/-/=) (number)"
-    setVarNum = re.compile(r"^set\s+(?P<varName>[\w\.]+)\s*(?P<operation>=|\+|-)\s*(?P<value>\d+)$", flags=re.I)
+    setVarNum = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<operation>=|\+|-)\s*(?P<value>\d+)$", flags=re.I)
 
     propertyType = re.compile(r"^type(?:\.(?P<property>\S+))?\s*:\s*(?P<value>.+)", flags = re.I)
     listOfNumbers = re.compile(r"^(?:\d+,\s*)+")
