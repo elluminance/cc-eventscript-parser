@@ -2,18 +2,18 @@ class Character:
     @staticmethod
     def characterLookup(charName: str) -> str:
         match charName.lower():
-            case 'lea': return 'main.lea',
-            case 'emilie' | "emilinator": return 'main.emilie',
-            case 'c\'tron': return 'main.glasses',
-            case 'apollo': return 'antagonists.fancyguy',
-            case 'joern': return 'antagonists.sidekick',
-            case 'shizuka': return 'main.shizuka',
-            case 'lukas' | 'schneider': return 'main.schneider',
-            case 'luke': return 'main.luke',
-            case 'sergey': return 'main.sergey',
-            case 'sergey (avatar)': return 'main.sergey-av',
-            case 'beowulf': return 'main.grumpy',
-            case 'buggy': return 'main.buggy',
+            case 'lea': return 'main.lea'
+            case 'emilie' | "emilinator": return 'main.emilie'
+            case 'c\'tron': return 'main.glasses'
+            case 'apollo': return 'antagonists.fancyguy'
+            case 'joern': return 'antagonists.sidekick'
+            case 'shizuka': return 'main.shizuka'
+            case 'lukas' | 'schneider': return 'main.schneider'
+            case 'luke': return 'main.luke'
+            case 'sergey': return 'main.sergey'
+            case 'sergey (avatar)': return 'main.sergey-av'
+            case 'beowulf': return 'main.grumpy'
+            case 'buggy': return 'main.buggy'
             case 'hlin': return 'main.guild-leader'
             case _: return charName
 
