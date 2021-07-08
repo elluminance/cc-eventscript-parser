@@ -140,6 +140,33 @@ class ADD_MSG_PERSON(Event_Step):
             "person": self.character.toPersonDict()
         } | {"name": {"en_US": self.customName}} if self.customName is not None else {}
 
+class SELECT_RANDOM(Event_Step):
+    class RandomChoice:
+        def __init__(self, weight: int, activeCondition: str) -> None:
+            self.events: list[Event_Step] = []
+            self.weight: int = weight
+            self.activeCondition: str = activeCondition
+
+    def __init__(self) -> None:
+        super().__init__(type = "SELECT_RANDOM")
+        self.options: list[SELECT_RANDOM.RandomChoice] = []
+
+    def asDict(self) -> dict:
+        events: dict[list[Event_Step]] = {}
+
+        for i in range(self.options):
+          for j in range(self.options[i].events):
+            events |= {f"{i}_{j}": [event.asDict() for event in self.options[i].events]}
+
+        return super().asDict() | {
+            "options": [
+                {
+                    "0": " ",
+                    "count": len(eventOption.events),
+                    "weight": eventOption.weight
+                } for eventOption in self.options
+            ]
+        } | events
 
 
 class CommonEvent:
