@@ -150,9 +150,9 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
         elif match := re.match(CCEventRegex.setVarNum, line):
             varName, sign, number = match.group("varName", "operation", "value")
             if sign == "=":
-                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(number), "set"))
+                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(number), Events.ChangeVarType.SET))
             elif sign in ["+", "-"]:
-                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(f"{sign}{number}"), "add"))
+                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(f"{sign}{number}"), Events.ChangeVarType.ADD))
 
     #ensure that ifs are properly terminated
     if inIf:

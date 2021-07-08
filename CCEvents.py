@@ -1,7 +1,13 @@
 from typing import Any
 from CCUtils import Character
-
+from enum import Enum
 # a class composed of event types in CrossCode.
+
+class ChangeVarType(Enum):
+    SET = "set"
+    ADD = "add"
+
+
 
 class Event_Step:
     def __init__(self, type: str) -> None:
@@ -14,29 +20,20 @@ class Event_Step:
         return {"type": self.type}
 
 class _ChangeVar(Event_Step):
-    def __init__(self, type: str, varName: str, value: Any, changeType: str) -> None:
+    def __init__(self, type: str, varName: str, value: Any, changeType: ChangeVarType) -> None:
         super().__init__(type),
         self.varName = varName
         self.value = value
         self.changeType = changeType
-    
-
-    @property
-    def changeType(self):
-        return self._changeType
-
-    @changeType.setter
-    def changeType(self, value):
-        if value not in ["set", "add"]:
-            raise Exception(f"Invalid changeType '{value}'")
-        self._changeType = value
 
     def asDict(self) -> dict:
         return super().asDict() | {
             "varName": self.varName,
             "value": self.value,
-            "changeType": self.changeType
+            "changeType": self.changeType.value
         }
+
+
 
 class _Message(Event_Step):
     def __init__(self, type: str, character: Character, message: str) -> None:
@@ -54,13 +51,13 @@ class _Message(Event_Step):
 
 class CHANGE_VAR_BOOL(_ChangeVar):
     def __init__(self, varName: str, value: bool) -> None:
-        super().__init__("CHANGE_VAR_BOOL", varName, value, "set")
+        super().__init__("CHANGE_VAR_BOOL", varName, value, ChangeVarType.SET)
     
     def asDict(self) -> dict:
         return super().asDict()
 
 class CHANGE_VAR_NUMBER(_ChangeVar):
-    def __init__(self, varName: str, value: int, changeType: str) -> None:
+    def __init__(self, varName: str, value: int, changeType: ChangeVarType) -> None:
         super().__init__("CHANGE_VAR_NUMBER", varName, value, changeType)
 
 class SHOW_SIDE_MSG(_Message):
