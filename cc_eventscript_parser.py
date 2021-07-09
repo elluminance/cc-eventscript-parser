@@ -28,7 +28,7 @@ class CCEventRegex:
     # matches strings of the form "message (number)", insensitive search
     eventHeader = re.compile(r"^(?:message|event) (?P<eventNum>\d+):?$", flags=re.I)
     # matches strings of the form "== title =="
-    title = re.compile(r"^== (?P<eventTitle>.+) ==$")
+    title = re.compile(r"^== *(?P<ignore>!)?(?P<eventTitle>\S+) *==$")
     # matches strings of the form "(key): (value)"
     property = re.compile(r"^(?P<property>\w+)\s*:\s*(?P<value>.+)$")
     # matches "set (varname) (true/false)"
@@ -232,6 +232,7 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
         nonlocal eventDict
         eventTitle: str = ""
         buffer: list[str] = []
+        ignoreEvent: bool = False
         with open(filename, "r", encoding='utf8') as inputFile:
             for line in inputFile:
                 # remove comments and strip excess whitespace
@@ -264,14 +265,18 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
                     # set the current event and clear the buffer
                     eventTitle = match.group("eventTitle").replace("/",".")
                     filename = f"./patches/{eventTitle}.json"
+                    buffer = []
                     
+                    if match.group("ignore"):
+                        ignoreEvent = True
+                        continue
+                    ignoreEvent = False
                     if eventTitle in eventDict: raise KeyError("Duplicate event name found in input file.")
                     eventDict[eventTitle] = EventItem(EventItemType.STANDARD_EVENT, filename, None)
-                    buffer = []
 
                 # add anything missing to buffer
                 else:
-                    buffer.append(line)
+                    if not ignoreEvent: buffer.append(line)
 
             # process any final events if one is present
             if buffer: eventDict[eventTitle].event = handleEvent(buffer)
@@ -279,7 +284,7 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
     
     if runRecursively:
         for item in os.listdir(inputFilenames[0]):
-            if re.match(r".*\.cces", item):
+            if re.match(r"[^!]*\.cces", item):
                 filelist.append(f"{inputFilenames[0]}/{item}")
     else:
         filelist = inputFilenames

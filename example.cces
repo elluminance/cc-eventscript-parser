@@ -1,6 +1,6 @@
 # lines that begin with "#" or "//" are skipped.
 # the title/name of the event should be surrounded by "==" signs.
-== apollo+battle-over+example ==
+== !apollo+battle-over+example ==
 
 # various properties can be set that control how the event occurs
 # or the condition itself.
@@ -68,7 +68,7 @@ Message 3:
 Emilie > SUSPICIOUS: I bet you didn't even notice I said nothing special after last battle, cherie?
 Lea > SHAKE: [shakes head]
 
-== type-test ==
+== !type-test ==
 condition: false
 type: SOCIAL_ACTION
 type.actionType: CONTACT, poop
