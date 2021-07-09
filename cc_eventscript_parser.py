@@ -310,6 +310,7 @@ def writeEventFiles(events: dict[str, EventItem], indentation = None) -> None:
         directoryMatch = re.match(CCEventRegex.filepath, filename)
         if directoryMatch and directoryMatch.group("directory"): os.makedirs(directoryMatch.group("directory"), exist_ok= True)
         if eventInfo.eventType == EventItemType.STANDARD_EVENT:
+            if eventInfo.event is None: continue
             if verbose: print(f"Writing file '{filename}'.")
             with open(filename, "w+") as jsonFile:
                 json.dump({eventName: eventInfo.event.asDict()}, jsonFile, indent = indentation)
