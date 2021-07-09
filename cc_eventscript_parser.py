@@ -284,7 +284,7 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
     
     if runRecursively:
         for item in os.listdir(inputFilenames[0]):
-            if re.match(r"[^!]*\.cces", item):
+            if (not item.startswith("!")) and re.match(r".*\.cces", item):
                 filelist.append(f"{inputFilenames[0]}/{item}")
     else:
         filelist = inputFilenames
