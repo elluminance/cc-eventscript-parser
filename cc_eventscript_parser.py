@@ -77,7 +77,7 @@ class EventItem:
 def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
     messageMatch = re.match(CCEventRegex.dialogue, inputString)
     character = CCUtils.Character(*messageMatch.group("character", "expression"))
-    message = messageMatch.group("dialogue")
+    message = messageMatch.group("dialogue").replace("\\n","\n")
 
     messageEvent = Events.SHOW_SIDE_MSG(character, message)
     return messageEvent
