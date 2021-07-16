@@ -6,6 +6,8 @@ from enum import Enum
 class ChangeVarType(Enum):
     SET = "set"
     ADD = "add"
+    OR = "or"
+    XOR = "xor"
 
 
 
