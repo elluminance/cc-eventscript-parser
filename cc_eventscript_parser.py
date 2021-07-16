@@ -118,6 +118,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
                 ifCount = 0
                 workingEvent.append(ifEvent)
                 inIf = False
+                hasElse = False
                 buffer = []
 
         # else
