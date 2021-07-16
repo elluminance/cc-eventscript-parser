@@ -123,11 +123,11 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
         # else
         elif re.match(CCEventRegex.elseStatement, line):
             if (not inIf):
-                raise CCES_Exception("Error: 'else' statement found outside of if block.")
+                raise CCES_Exception("'else' statement found outside of if block")
             elif ifCount > 1:
                 buffer.append(line)
             elif hasElse:
-                raise CCES_Exception("Error: Multiple 'else' statements found inside of if block.")
+                raise CCES_Exception("multiple 'else' statements found inside of if block")
             else:
                 hasElse = True
                 ifEvent.thenStep = processEvents(buffer)
@@ -172,7 +172,10 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     for line in eventStrs:
         if match := re.match(CCEventRegex.eventHeader, line):
             if trackMessages:
-                workingEvent.thenStep = processEvents(buffer)
+                try:
+                    workingEvent.thenStep = processEvents(buffer)
+                except CCES_Exception as e:
+                    raise CCES_Exception(f"error in event {eventNumber}", *e.args)
                 event.event[eventNumber] = workingEvent
                 buffer = []
 
@@ -218,7 +221,10 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
         else:
             print(f"Unrecognized line \"{line}\", ignoring...", file = sys.stderr)
     if buffer:
-        workingEvent.thenStep = processEvents(buffer)
+        try:
+            workingEvent.thenStep = processEvents(buffer)
+        except CCES_Exception as e:
+            raise CCES_Exception(f"error in message {eventNumber}", *e.args)
         event.event[eventNumber] = workingEvent
     if event.type == {}:
         event.type = {"killCount": 0, "type": "BATTLE_OVER"}
@@ -292,7 +298,7 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
         try: 
             readFile(filename)
         except CCES_Exception as e:
-            raise Exception(f"Error in {filename}: " + str(*e.args))
+            raise Exception(f"Error in {filename}: " + " - ".join(e.args))
     return eventDict
 
 def generatePatchFile(events: dict[str, EventItem]) -> list[dict]:
