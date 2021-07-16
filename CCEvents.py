@@ -33,8 +33,6 @@ class _ChangeVar(Event_Step):
             "changeType": self.changeType.value
         }
 
-
-
 class _Message(Event_Step):
     def __init__(self, type: str, character: Character, message: str) -> None:
         super().__init__(type)
@@ -48,6 +46,8 @@ class _Message(Event_Step):
             },
             "person": self.character.toPersonDict()
         }
+
+
 
 class CHANGE_VAR_BOOL(_ChangeVar):
     def __init__(self, varName: str, value: bool) -> None:
@@ -164,6 +164,37 @@ class SELECT_RANDOM(Event_Step):
                 } for eventOption in self.options
             ]
         } | events
+
+class LABEL(Event_Step):
+    def __init__(self, labelName: str) -> None:
+        super().__init__("LABEL")
+        self.name: str = labelName
+    
+    def asDict(self) -> dict:
+        return super().asDict() | {
+            "name": self.name
+        }
+
+class GOTO_LABEL(Event_Step): 
+    def __init__(self, labelName: str) -> None:
+        super().__init__("GOTO_LABEL")
+        self.name: str = labelName
+    
+    def asDict(self) -> dict:
+        return super().asDict() | {
+            "name": self.name
+        }
+
+class GOTO_LABEL_WHILE(GOTO_LABEL): 
+    def __init__(self, labelName: str, condition: str) -> None:
+        super().__init__(labelName)
+        self.type = "GOTO_LABEL_WHILE"
+        self.condition: str = condition
+    
+    def asDict(self) -> dict:
+        return super().asDict() | {
+            "condition": self.condition
+        }
 
 
 class CommonEvent:
