@@ -12,18 +12,12 @@ class ChangeVarType(Enum):
 
 
 class Event_Step:
-    def __init__(self, type: str) -> None:
-        self._type = type
-
-    @property
-    def type(self): return self._type
-
     def asDict(self) -> dict:
-        return {"type": self.type}
+        return {"type": type(self).__name__}
 
 class _ChangeVar(Event_Step):
-    def __init__(self, type: str, varName: str, value: Any, changeType: ChangeVarType) -> None:
-        super().__init__(type),
+    def __init__(self, varName: str, value: Any, changeType: ChangeVarType) -> None:
+        super().__init__()
         self.varName = varName
         self.value = value
         self.changeType = changeType
@@ -36,8 +30,8 @@ class _ChangeVar(Event_Step):
         }
 
 class _Message(Event_Step):
-    def __init__(self, type: str, character: Character, message: str) -> None:
-        super().__init__(type)
+    def __init__(self, character: Character, message: str) -> None:
+        super().__init__()
         self.character = character
         self.message = message
     
@@ -53,22 +47,22 @@ class _Message(Event_Step):
 
 class CHANGE_VAR_BOOL(_ChangeVar):
     def __init__(self, varName: str, value: bool) -> None:
-        super().__init__("CHANGE_VAR_BOOL", varName, value, ChangeVarType.SET)
+        super().__init__(varName, value, ChangeVarType.SET)
     
     def asDict(self) -> dict:
         return super().asDict()
 
 class CHANGE_VAR_NUMBER(_ChangeVar):
     def __init__(self, varName: str, value: int, changeType: ChangeVarType) -> None:
-        super().__init__("CHANGE_VAR_NUMBER", varName, value, changeType)
+        super().__init__(varName, value, changeType)
 
 class SHOW_SIDE_MSG(_Message):
     def __init__(self, character: Character, message: str) -> None:
-        super().__init__("SHOW_SIDE_MSG", character, message)
+        super().__init__(character, message)
 
 class SHOW_MSG(_Message):
     def __init__(self, character: Character, message: str, autoContinue: bool = False) -> None:
-        super().__init__("SHOW_MSG", character, message)
+        super().__init__(character, message)
         self.autoContinue = autoContinue
     
     def asDict(self) -> dict:
@@ -76,7 +70,7 @@ class SHOW_MSG(_Message):
 
 class IF(Event_Step):
     def __init__(self, condition: str, *, thenEvent: list[Event_Step] = [], elseEvent: list[Event_Step] = []) -> None:
-        super().__init__(type = "IF")
+        super().__init__()
         self.condition: str = condition
         self.thenStep: list[Event_Step] = thenEvent
         self.elseStep: list[Event_Step] = elseEvent
@@ -101,7 +95,7 @@ class IF(Event_Step):
 
 class WAIT(Event_Step):
     def __init__(self, time: float, ignoreSlowdown: bool = False) -> None:
-        super().__init__("WAIT")
+        super().__init__()
         self.time = float(time)
         self.ignoreSlowdown = ignoreSlowdown
 
@@ -113,7 +107,7 @@ class WAIT(Event_Step):
 
 class ADD_MSG_PERSON(Event_Step):
     def __init__(self, character: Character, side: str, clearSide: bool = False, order: int = 0, customName: str = None) -> None:
-        super().__init__("ADD_MSG_PERSON")
+        super().__init__()
         self.character = character
         self.side = side
         self.clearSide = clearSide
@@ -147,7 +141,7 @@ class SELECT_RANDOM(Event_Step):
             self.activeCondition: str = activeCondition
 
     def __init__(self) -> None:
-        super().__init__(type = "SELECT_RANDOM")
+        super().__init__()
         self.options: list[SELECT_RANDOM.RandomChoice] = []
 
     def asDict(self) -> dict:
@@ -169,7 +163,7 @@ class SELECT_RANDOM(Event_Step):
 
 class LABEL(Event_Step):
     def __init__(self, labelName: str) -> None:
-        super().__init__("LABEL")
+        super().__init__()
         self.name: str = labelName
     
     def asDict(self) -> dict:
@@ -179,7 +173,7 @@ class LABEL(Event_Step):
 
 class GOTO_LABEL(Event_Step): 
     def __init__(self, labelName: str) -> None:
-        super().__init__("GOTO_LABEL")
+        super().__init__()
         self.name: str = labelName
     
     def asDict(self) -> dict:
@@ -187,10 +181,10 @@ class GOTO_LABEL(Event_Step):
             "name": self.name
         }
 
-class GOTO_LABEL_WHILE(Event_Step): 
+class GOTO_LABEL_WHILE(GOTO_LABEL): 
     def __init__(self, labelName: str, condition: str) -> None:
-        super().__init__("GOTO_LABEL_WHILE")
-        self.name: str = labelName
+        super().__init__(labelName)
+        self.type = "GOTO_LABEL_WHILE"
         self.condition: str = condition
     
     def asDict(self) -> dict:
