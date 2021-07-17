@@ -224,12 +224,13 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
             propertyName, propertyValue = match.group("property", "value")
             propertyName = propertyName.lower()
             
-            if propertyName == "frequency": event.frequency = propertyValue
-            elif propertyName == "repeat": event.repeat = propertyValue
-            elif propertyName == "condition": event.condition = propertyValue
-            elif propertyName == "eventtype": event.eventType = propertyValue
-            elif propertyName == "loopcount": event.loopCount = int(propertyValue)
-            else: print(f"Unrecognized property \"{propertyName}\", skipping...", file = sys.stderr)
+            match property:
+                case "frequency": event.frequency = propertyValue
+                case "repeat": event.repeat = propertyValue
+                case "condition": event.condition = propertyValue
+                case "eventtype": event.eventType = propertyValue
+                case "loopcount": event.loopCount = int(propertyValue)
+                case _: print(f"Unrecognized property \"{propertyName}\", skipping...", file = sys.stderr)
 
         else:
             print(f"Unrecognized line \"{line}\", ignoring...", file = sys.stderr)
