@@ -224,7 +224,7 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
             propertyName, propertyValue = match.group("property", "value")
             propertyName = propertyName.lower()
             
-            match property:
+            match propertyName:
                 case "frequency": event.frequency = propertyValue
                 case "repeat": event.repeat = propertyValue
                 case "condition": event.condition = propertyValue
