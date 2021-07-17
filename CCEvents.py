@@ -46,8 +46,8 @@ class _Message(Event_Step):
 
 
 class CHANGE_VAR_BOOL(_ChangeVar):
-    def __init__(self, varName: str, value: bool) -> None:
-        super().__init__(varName, value, ChangeVarType.SET)
+    def __init__(self, varName: str, value: bool, changeType: ChangeVarType = ChangeVarType.SET) -> None:
+        super().__init__(varName, value, changeType)
     
     def asDict(self) -> dict:
         return super().asDict()

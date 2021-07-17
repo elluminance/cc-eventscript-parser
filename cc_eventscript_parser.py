@@ -2,6 +2,7 @@ import json
 import os, re, sys, argparse
 import CCEvents as Events
 import CCUtils
+from CCEvents import ChangeVarType
 from enum import Enum
 
 # ~ crosscode eventscript v1.5.0 parser, by EL ~
@@ -32,9 +33,9 @@ class CCEventRegex:
     # matches strings of the form "(key): (value)"
     property = re.compile(r"^(?P<property>\w+)\s*:\s*(?P<value>.+)$")
     # matches "set (varname) (true/false)"
-    setVarBool = re.compile(r"^set\s+(?P<varName>\S+)(?:\s*=\s*|\s+)(?P<value>true|false)$", flags=re.I)
+    setVarBool = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<sign>[= |^])\s*(?P<value>true|false)$", flags=re.I)
     # matches "set (varname) (+/-/=) (number)"
-    setVarNum = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<operation>[=+-])\s*(?P<value>\d+)$", flags=re.I)
+    setVarNum = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<operation>[=+\-|^])\s*(?P<value>\d+)$", flags=re.I)
 
     label = re.compile(r"label +(?P<name>\S+)", flags=re.I)
     gotoLabel = re.compile(r"goto +(?P<name>\S)(?: +if +(?P<condition>.+))?", flags=re.I)
@@ -106,7 +107,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
             ifCount += 1
 
         # endif
-        elif CCEventRegex.endifStatement.match( line):
+        elif CCEventRegex.endifStatement.match(line):
             # only count the last "endif" of a block
             if ifCount > 1:
                 buffer.append(line)
@@ -147,16 +148,37 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
 
         # set var = bool
         elif match := CCEventRegex.setVarBool.match(line):
-            varName, value = match.group("varName", "value")
-            workingEvent.append(Events.CHANGE_VAR_BOOL(varName, bool(value)))
+            varName, sign, originalValue = match.group("varName", "sign", "value")
+            value = (originalValue.lower() == "true")
+            operation: ChangeVarType
+            match sign:
+                case "=" | " ":
+                    operation = ChangeVarType.SET
+                case "|":
+                    operation = ChangeVarType.OR
+                case "^":
+                    operation = Events.ChangeVarType.XOR 
+
+            workingEvent.append(Events.CHANGE_VAR_BOOL(varName, value, operation))
 
         # set var +|-|= num
         elif match := CCEventRegex.setVarNum.match(line):
             varName, sign, number = match.group("varName", "operation", "value")
-            if sign == "=":
-                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(number), Events.ChangeVarType.SET))
-            elif sign in ["+", "-"]:
-                workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(f"{sign}{number}"), Events.ChangeVarType.ADD))
+            value = int(number)
+            operation: ChangeVarType
+            match sign:
+                case "=":
+                    operation = ChangeVarType.SET
+                case "+":
+                    operation = ChangeVarType.ADD
+                case "-":
+                    operation = ChangeVarType.ADD
+                    value = -value
+                case "|":
+                    operation = ChangeVarType.OR
+                case "^":
+                    operation = Events.ChangeVarType.XOR 
+            workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, value, operation))
 
         elif match := CCEventRegex.label.match(line):
             workingEvent.append(Events.LABEL(match.group("name")))
