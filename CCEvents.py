@@ -184,7 +184,6 @@ class GOTO_LABEL(Event_Step):
 class GOTO_LABEL_WHILE(GOTO_LABEL): 
     def __init__(self, labelName: str, condition: str) -> None:
         super().__init__(labelName)
-        self.type = "GOTO_LABEL_WHILE"
         self.condition: str = condition
     
     def asDict(self) -> dict:

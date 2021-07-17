@@ -61,9 +61,11 @@ condition: party.alive.Emilie
 
 Message 1:
 goto X
-goto Y if true
-Emilie > CULTURE: I am French. Oui oui. # yes, in-line comments are possible now!
+goto Y if true && false
 label X
+
+
+Emilie > CULTURE: I am French. Oui oui. # yes, in-line comments are possible now!
 Lea > SMILE: ...
 
 # yes, you can skip some message/events!
