@@ -56,7 +56,7 @@ class EventItemType(Enum):
 class EventItem:
     def __init__(self, eventType, filePath: str, event: Events.CommonEvent | None = None) -> None:
         self.eventType = eventType
-        if not re.match(CCEventRegex.filepath, filePath): raise CCES_Exception(f"Error: Invalid file path {filePath}!")
+        if not CCEventRegex.filepath.match(filePath): raise CCES_Exception(f"Error: Invalid file path {filePath}!")
         self.filepath = filePath
         self.event = event
 
@@ -78,7 +78,7 @@ class EventItem:
 
 
 def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
-    messageMatch = re.match(CCEventRegex.dialogue, inputString)
+    messageMatch = CCEventRegex.dialogue.match(inputString)
     character = CCUtils.Character(*messageMatch.group("character", "expression"))
     message = messageMatch.group("dialogue").replace("\\n","\n")
 
@@ -97,7 +97,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
         line = line.strip()
         
         # if (condition)
-        if match := re.match(CCEventRegex.ifStatement, line):
+        if match := CCEventRegex.ifStatement.match(line):
             if not inIf:
                 ifEvent = Events.IF(match.group("condition"))
                 inIf = True
@@ -106,7 +106,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
             ifCount += 1
 
         # endif
-        elif re.match(CCEventRegex.endifStatement, line):
+        elif CCEventRegex.endifStatement.match( line):
             # only count the last "endif" of a block
             if ifCount > 1:
                 buffer.append(line)
@@ -125,7 +125,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
                 buffer = []
 
         # else
-        elif re.match(CCEventRegex.elseStatement, line):
+        elif CCEventRegex.elseStatement.match(line):
             if (not inIf):
                 raise CCES_Exception("'else' statement found outside of if block")
             elif ifCount > 1:
@@ -142,16 +142,16 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
             buffer.append(line)
 
         # dialogue
-        elif match := re.match(CCEventRegex.dialogue, line):
+        elif match := CCEventRegex.dialogue.match(line):
             workingEvent.append(processDialogue(line))
 
         # set var = bool
-        elif match := re.match(CCEventRegex.setVarBool, line):
+        elif match := CCEventRegex.setVarBool.match(line):
             varName, value = match.group("varName", "value")
             workingEvent.append(Events.CHANGE_VAR_BOOL(varName, bool(value)))
 
         # set var +|-|= num
-        elif match := re.match(CCEventRegex.setVarNum, line):
+        elif match := CCEventRegex.setVarNum.match(line):
             varName, sign, number = match.group("varName", "operation", "value")
             if sign == "=":
                 workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(number), Events.ChangeVarType.SET))
@@ -162,7 +162,7 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
             workingEvent.append(Events.LABEL(match.group("name")))
 
         elif match := CCEventRegex.gotoLabel.match(line):
-            if match.group("condition"):
+            if match.group("condition"): # if a condition exists, it will do GOTO_LABEL_WHILE instead.
                 workingEvent.append(Events.GOTO_LABEL_WHILE(*match.group("name", "condition")))
             else:
                 workingEvent.append(Events.GOTO_LABEL(match.group("name")))
@@ -183,7 +183,7 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     workingEvent = {}
 
     for line in eventStrs:
-        if match := re.match(CCEventRegex.eventHeader, line):
+        if match := CCEventRegex.eventHeader.match(line):
             if trackMessages:
                 try:
                     workingEvent.thenStep = processEvents(buffer)
@@ -199,16 +199,16 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
         elif trackMessages:
             buffer.append(line) 
 
-        elif match := re.match(CCEventRegex.propertyType, line):
+        elif match := CCEventRegex.propertyType.match(line):
             propertyName, propertyValue = match.group("property", "value")
             propertyValue = propertyValue.strip()
             if propertyName is not None:
                 
-                if re.match(CCEventRegex.listOfNumbers, propertyValue):
+                if CCEventRegex.listOfNumbers.match(propertyValue):
                     typeValueList = propertyValue.split(",")
                     event.type[propertyName] = [int(value) for value in typeValueList]
 
-                elif re.match(CCEventRegex.listOfStrings, propertyValue):
+                elif CCEventRegex.listOfStrings.match(propertyValue):
                     typeValueList = propertyValue.split(",")
                     event.type[propertyName] = [value.strip() for value in typeValueList]
 
@@ -220,7 +220,7 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
             else:
                 event.type["type"] = propertyValue
 
-        elif match := re.match(CCEventRegex.property, line):
+        elif match := CCEventRegex.property.match(line):
             propertyName, propertyValue = match.group("property", "value")
             propertyName = propertyName.lower()
             
@@ -261,21 +261,21 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
                 if (not line): continue
                 
                 # handle file imports
-                if match := re.match(CCEventRegex.importFile, line):
+                if match := CCEventRegex.importFile.match(line):
                     filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
                     eventTitle = match.group("filename")
                     if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
                     eventDict[eventTitle] = EventItem(EventItemType.IMPORT, filename)
                     eventTitle = ""
 
-                if match := re.match(CCEventRegex.includeFile, line):
+                if match := CCEventRegex.includeFile.match(line):
                     filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
                     eventTitle = match.group("filename")
                     if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
                     eventDict[eventTitle] = EventItem(EventItemType.INCLUDE, filename)
                     eventTitle = ""
 
-                elif match := re.match(CCEventRegex.title, line):
+                elif match := CCEventRegex.title.match(line):
                     # check that the event isn't empty so it only runs if there's actually something there
                     if buffer: 
                         eventDict[eventTitle].event = handleEvent(buffer)
@@ -326,7 +326,7 @@ def writeEventFiles(events: dict[str, EventItem], indentation = None) -> None:
     os.makedirs("./patches/", exist_ok = True)
     for eventName, eventInfo in events.items():
         filename = eventInfo.filepath
-        directoryMatch = re.match(CCEventRegex.filepath, filename)
+        directoryMatch = CCEventRegex.filepath.match(filename)
         if directoryMatch and directoryMatch.group("directory"): os.makedirs(directoryMatch.group("directory"), exist_ok= True)
         if eventInfo.eventType == EventItemType.STANDARD_EVENT:
             if eventInfo.event is None: continue
@@ -336,7 +336,7 @@ def writeEventFiles(events: dict[str, EventItem], indentation = None) -> None:
 
 def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -> None:
     filename = filename.strip()
-    fileMatch = re.match(CCEventRegex.filepath, filename)
+    fileMatch = CCEventRegex.filepath.match(filename)
     os.makedirs(fileMatch.group("directory"), exist_ok = True)
     if verbose:
         print("Writing patch file at ./assets/data/database.json.patch")
