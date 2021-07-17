@@ -36,6 +36,9 @@ class CCEventRegex:
     # matches "set (varname) (+/-/=) (number)"
     setVarNum = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<operation>=|\+|-)\s*(?P<value>\d+)$", flags=re.I)
 
+    label = re.compile(r"label +(?P<name>\S+)", flags=re.I)
+    gotoLabel = re.compile(r"goto +(?P<name>\S)+(?: +if +(?P<condition>.+))?", flags=re.I)
+
     propertyType = re.compile(r"^type(?:\.(?P<property>\S+))?\s*:\s*(?P<value>.+)", flags = re.I)
     listOfNumbers = re.compile(r"^(?:\d+,\s*)+")
     listOfStrings = re.compile(r"^(?:\S+,\s*)+")
@@ -154,6 +157,15 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
                 workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(number), Events.ChangeVarType.SET))
             elif sign in ["+", "-"]:
                 workingEvent.append(Events.CHANGE_VAR_NUMBER(varName, int(f"{sign}{number}"), Events.ChangeVarType.ADD))
+
+        elif match := CCEventRegex.label.match(line):
+            workingEvent.append(Events.LABEL(match.group("name")))
+
+        elif match := CCEventRegex.gotoLabel.match(line):
+            if match.group("condition"):
+                workingEvent.append(Events.GOTO_LABEL_WHILE(*match.group("name", "condition")))
+            else:
+                workingEvent.append(Events.GOTO_LABEL(match.group("name")))
 
     #ensure that ifs are properly terminated
     if inIf:

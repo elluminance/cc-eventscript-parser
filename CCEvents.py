@@ -187,14 +187,15 @@ class GOTO_LABEL(Event_Step):
             "name": self.name
         }
 
-class GOTO_LABEL_WHILE(GOTO_LABEL): 
+class GOTO_LABEL_WHILE(Event_Step): 
     def __init__(self, labelName: str, condition: str) -> None:
-        super().__init__(labelName)
-        self.type = "GOTO_LABEL_WHILE"
+        super().__init__("GOTO_LABEL_WHILE")
+        self.name: str = labelName
         self.condition: str = condition
     
     def asDict(self) -> dict:
         return super().asDict() | {
+            "name": self.name,
             "condition": self.condition
         }
 

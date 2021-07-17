@@ -1,6 +1,6 @@
 # lines that begin with "#" or "//" are skipped.
 # the title/name of the event should be surrounded by "==" signs.
-== !apollo+battle-over+example ==
+== apollo+battle-over+example ==
 
 # various properties can be set that control how the event occurs
 # or the condition itself.
@@ -22,7 +22,7 @@ Lea > CHARMED: ...!
 
 
 Message 2
-Apollo > DEFAULT: We should duel again, Spheromancer Lea!
+Apollo > DEFAULT: We should duel again, \nSpheromancer Lea!
 Lea > SMILE: ...
 # a "set" command will cause the event to set a variable's value
 # for a boolean value, the format will always be:
@@ -60,7 +60,10 @@ set tmp.numTest2 = 3
 condition: party.alive.Emilie
 
 Message 1:
+goto X
+goto Y if true
 Emilie > CULTURE: I am French. Oui oui. # yes, in-line comments are possible now!
+label X
 Lea > SMILE: ...
 
 # yes, you can skip some message/events!
@@ -69,6 +72,10 @@ Emilie > SUSPICIOUS: I bet you didn't even notice I said nothing special after l
 Lea > SHAKE: [shakes head]
 
 == !type-test ==
-condition: false
-type: SOCIAL_ACTION
-type.actionType: CONTACT, poop
+
+
+== !test-event ==
+
+Message 3:
+Emilie > SUSPICIOUS: I bet you didn't even notice I said nothing special after last battle, cherie?
+Lea > SHAKE: [shakes head]
