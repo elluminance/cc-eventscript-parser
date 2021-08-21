@@ -38,7 +38,7 @@ class CCEventRegex:
     setVarNum = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<operation>[=+\-|^])\s*(?P<value>\d+)$", flags=re.I)
 
     label = re.compile(r"label +(?P<name>\S+)", flags=re.I)
-    gotoLabel = re.compile(r"goto +(?P<name>\S)(?: +if +(?P<condition>.+))?", flags=re.I)
+    gotoLabel = re.compile(r"goto +(?P<name>\S+)(?: +if +(?P<condition>.+))?", flags=re.I)
 
     propertyType = re.compile(r"^type(?:\.(?P<property>\S+))?\s*:\s*(?P<value>.+)", flags = re.I)
     listOfNumbers = re.compile(r"^(?:\d+,\s*)+")

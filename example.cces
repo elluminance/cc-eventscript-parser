@@ -60,8 +60,8 @@ set tmp.numTest2 = 3
 condition: party.alive.Emilie
 
 Message 1:
-goto X
-goto Y if true && false
+goto XAAAAAAAAAAAAAAAAAAAAAAAAAA
+goto YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA if true && false
 label X
 
 
