@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 from CCUtils import Character
 from enum import Enum
 # a class composed of event types in CrossCode.
@@ -13,7 +13,11 @@ class ChangeVarType(Enum):
     OR = "or"
     XOR = "xor"
 
-
+class RandomChoice:
+    def __init__(self, weight: int, activeCondition: str) -> None:
+        self.events: list[Event_Step] = []
+        self.weight: int = weight
+        self.activeCondition: str = activeCondition
 
 class Event_Step:
     def asDict(self) -> dict:
@@ -22,9 +26,9 @@ class Event_Step:
 class _ChangeVar(Event_Step):
     def __init__(self, varName: str, value: Any, changeType: ChangeVarType) -> None:
         super().__init__()
-        self.varName = varName
-        self.value = value
-        self.changeType = changeType
+        self.varName: str= varName
+        self.value: Any = value
+        self.changeType: ChangeVarType = changeType
 
     def asDict(self) -> dict:
         return super().asDict() | {
@@ -36,8 +40,8 @@ class _ChangeVar(Event_Step):
 class _Message(Event_Step):
     def __init__(self, character: Character, message: str) -> None:
         super().__init__()
-        self.character = character
-        self.message = message
+        self.character: Character = character
+        self.message: str = message
     
     def asDict(self) -> dict:
         return super().asDict() | {
@@ -52,9 +56,6 @@ class _Message(Event_Step):
 class CHANGE_VAR_BOOL(_ChangeVar):
     def __init__(self, varName: str, value: bool, changeType: ChangeVarType = ChangeVarType.SET) -> None:
         super().__init__(varName, value, changeType)
-    
-    def asDict(self) -> dict:
-        return super().asDict()
 
 class CHANGE_VAR_NUMBER(_ChangeVar):
     def __init__(self, varName: str, value: int, changeType: ChangeVarType) -> None:
@@ -67,7 +68,7 @@ class SHOW_SIDE_MSG(_Message):
 class SHOW_MSG(_Message):
     def __init__(self, character: Character, message: str, autoContinue: bool = False) -> None:
         super().__init__(character, message)
-        self.autoContinue = autoContinue
+        self.autoContinue: bool = autoContinue
     
     def asDict(self) -> dict:
         return super().asDict() | {"autoContinue": self.autoContinue}
@@ -100,8 +101,8 @@ class IF(Event_Step):
 class WAIT(Event_Step):
     def __init__(self, time: float, ignoreSlowdown: bool = False) -> None:
         super().__init__()
-        self.time = float(time)
-        self.ignoreSlowdown = ignoreSlowdown
+        self.time: float = float(time)
+        self.ignoreSlowdown: bool = ignoreSlowdown
 
     def asDict(self) -> dict:
         return super().asDict() | {
@@ -112,22 +113,11 @@ class WAIT(Event_Step):
 class ADD_MSG_PERSON(Event_Step):
     def __init__(self, character: Character, side: str, clearSide: bool = False, order: int = 0, customName: str = None) -> None:
         super().__init__()
-        self.character = character
-        self.side = side
-        self.clearSide = clearSide
-        self.customName = customName
-        self.order = order
-
-    @property
-    def side(self):
-        return self._side
-
-    @side.setter
-    def side(self, value):
-        if value in ["LEFT", "RIGHT"]:
-            self._side = value
-        else:
-            raise ValueError(f"Invalid side '{value}'")
+        self.character: Character = character
+        self.side: Literal["LEFT", "RIGHT"] = side
+        self.clearSide: bool = clearSide
+        self.customName: str = customName
+        self.order: int = order
 
     def asDict(self) -> dict:
         return super().asDict() | {
@@ -138,15 +128,9 @@ class ADD_MSG_PERSON(Event_Step):
         } | {"name": {"en_US": self.customName}} if self.customName is not None else {}
 
 class SELECT_RANDOM(Event_Step):
-    class RandomChoice:
-        def __init__(self, weight: int, activeCondition: str) -> None:
-            self.events: list[Event_Step] = []
-            self.weight: int = weight
-            self.activeCondition: str = activeCondition
-
     def __init__(self) -> None:
         super().__init__()
-        self.options: list[SELECT_RANDOM.RandomChoice] = []
+        self.options: list[RandomChoice] = []
 
     def asDict(self) -> dict:
         events: dict[list[Event_Step]] = {}
