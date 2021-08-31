@@ -35,7 +35,7 @@ class CCEventRegex:
     # matches "set (varname) (true/false)"
     setVarBool = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<sign>[= |^])\s*(?P<value>true|false)$", flags=re.I)
     # matches "set (varname) (+/-/=) (number)"
-    setVarNum = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<operation>[=+\-|^])\s*(?P<value>\d+)$", flags=re.I)
+    setVarNum = re.compile(r"^set\s+(?P<varName>\S+)\s*(?P<operation>[=+\-*/%|^])\s*(?P<value>\d+)$", flags=re.I)
 
     label = re.compile(r"label +(?P<name>\S+)", flags=re.I)
     gotoLabel = re.compile(r"goto +(?P<name>\S+)(?: +if +(?P<condition>.+))?", flags=re.I)
@@ -172,8 +172,13 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
                 case "+":
                     operation = ChangeVarType.ADD
                 case "-":
-                    operation = ChangeVarType.ADD
-                    value = -value
+                    operation = ChangeVarType.SUB
+                case "*":
+                    operation = ChangeVarType.MUL
+                case "/":
+                    operation = ChangeVarType.DIV
+                case "%":
+                    operation = ChangeVarType.MOD
                 case "|":
                     operation = ChangeVarType.OR
                 case "^":
