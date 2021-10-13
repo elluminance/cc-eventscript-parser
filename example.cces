@@ -1,20 +1,20 @@
-# lines that begin with "#" or "//" are skipped.
-# the title/name of the event should be surrounded by "==" signs.
+// lines that begin with "//" or "//" are skipped.
+// the title/name of the event should be surrounded by "==" signs.
 == apollo+battle-over+example ==
 
-# various properties can be set that control how the event occurs
-# or the condition itself.
+// various properties can be set that control how the event occurs
+// or the condition itself.
 frequency: REGULAR
 repeat: ONCE
 eventType: PARALLEL
 loopCount: 3
 condition: party.alive.Apollo && plot.line >= 40000
 
-# all individual message events need to be titled with either "message" or "event",
-# and then the event number.
+// all individual message events need to be titled with either "message" or "event",
+// and then the event number.
 
-# a chat message will be of the form 
-# characterName > EXPRESSION: message.
+// a chat message will be of the form 
+// characterName > EXPRESSION: message.
 
 Message 1
 Apollo > CONTENT: I am Apollo! Justice justice justice!
@@ -24,17 +24,17 @@ Lea > CHARMED: ...!
 Message 2
 Apollo > DEFAULT: We should duel again, \nSpheromancer Lea!
 Lea > SMILE: ...
-# a "set" command will cause the event to set a variable's value
-# for a boolean value, the format will always be:
-# set varName = (true/false) 
+// a "set" command will cause the event to set a variable's value
+// for a boolean value, the format will always be:
+// set varName = (true/false) 
 set tmp.leaSmile = true
-# a numeric "set" statement has a similar, but slightly different form to a
-# boolean "set" statement.
-# to set the value (as in replace the old value with a new one), use:
-# set varName = (number)
-# to increment the value, use a "+" or "-" instead of an "=".
-# set varName + (number)
-# set varName - (number)
+// a numeric "set" statement has a similar, but slightly different form to a
+// boolean "set" statement.
+// to set the value (as in replace the old value with a new one), use:
+// set varName = (number)
+// to increment the value, use a "+" or "-" instead of an "=".
+// set varName + (number)
+// set varName - (number)
 set tmp.numTest + 5
 set tmp.numTest2 - 3
 
@@ -42,14 +42,14 @@ set tmp.numTest2 - 3
 Message 3
 Apollo > POINTING: We have such a noble class, Lea!
 Lea > NOD: [nods]
-# an if statement allows one to introduce conditions in an event.
-# an if statement must have a corresponding "endif" command. 
-# an if condition will always be of the form:
-# if (condition)
+// an if statement allows one to introduce conditions in an event.
+// an if statement must have a corresponding "endif" command. 
+// an if condition will always be of the form:
+// if (condition)
 if tmp.test
     if tmp.leaSmile
         set tmp.numTest2 + 5
-    # an "else" statement allows one to do "if/else" flow control.
+    // an "else" statement allows one to do "if/else" flow control.
     else
         set tmp.numTest2 - 3 
     endif
@@ -65,10 +65,10 @@ goto YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA if true && false
 label X
 
 
-Emilie > CULTURE: I am French. Oui oui. # yes, in-line comments are possible now!
+Emilie > CULTURE: I am French. Oui oui. // yes, in-line comments are possible now!
 Lea > SMILE: ...
 
-# yes, you can skip some message/events!
+// yes, you can skip some message/events!
 Message 3:
 Emilie > SUSPICIOUS: I bet you didn't even notice I said nothing special after last battle, cherie?
 Lea > SHAKE: [shakes head]

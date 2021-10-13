@@ -14,11 +14,15 @@ from enum import Enum
 
 verbose = False
 
-class CCES_Exception(Exception): pass
+class CCES_Exception(Exception): 
+    "Exceptions related to errors in an CC EventScript file."
+
+class ParserException(Exception):
+    "General exceptions related to the parser itself."
 
 class CCEventRegex:
     # matches lines that start with "#" or "//"
-    comment = re.compile(r"(?<!\\)(?:#|\/\/).*")
+    comment = re.compile(r"(?<!\\)(?:\/\/).*")
     # matches strings of the form "import (fileName)"
     importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
     includeFile = re.compile(r"^include\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
@@ -60,17 +64,29 @@ class FileParser:
             self.fileLines: list[str] = file.readlines()
         self.line_num: int = 1
         self.total_lines = len(self.fileLines)
-        print(self.line_num)
-        print(len(self.fileLines))
+        self.line_bookmark: int | None = None
 
-    def getLine(self) -> str:
-        print(self.line_num > self.total_lines)
+    @property
+    def lines(self) -> str:
         while self.line_num <= self.total_lines: 
-            curLine = self.fileLines[self.line_num - 1]
+            newLine = CCEventRegex.comment.sub("", self.fileLines[self.line_num - 1].strip())
+            if not newLine: 
+                self.line_num += 1
+                continue
+            yield newLine
             self.line_num += 1
-            yield curLine.strip()
         return
 
+    def setBookmark(self):
+        if(self.line_bookmark is None):
+            raise ParserException("Bookmark is already set!")
+        self.line_bookmark = self.line_num
+
+    def returnToBookmark(self):
+        if(self.line_bookmark is None):
+            raise ParserException("Bookmark not set!")
+        self.line_num = self.line_bookmark
+        self.line_bookmark = None
 
 class EventItem:
     def __init__(self, eventType, filePath: str, event: Events.CommonEvent | None = None) -> None:
@@ -393,8 +409,8 @@ def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -
 if __name__ == "__main__":
     x = FileParser("example.cces")
 
-    for line in x.getLine():
-        print(line)
+    for line in x.lines:
+        print(f"{x.line_num}: {line}")
 
     exit(0)
     parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
