@@ -58,6 +58,11 @@ class EventItemType(Enum):
     IMPORT = 2
     INCLUDE = 3
 
+class ParserMode(Enum):
+    NORMAL = 0
+    IF = 1
+    ELSE = 2
+
 class FileParser:
     def __init__(self, filename: str) -> None:
         with open(filename, "r") as file: 
@@ -65,6 +70,7 @@ class FileParser:
         self.line_num: int = 1
         self.total_lines = len(self.fileLines)
         self.line_bookmark: int | None = None
+        self.currentState: ParserMode = ParserMode.NORMAL
 
     @property
     def lines(self) -> str:
@@ -121,60 +127,43 @@ def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
     return messageEvent
 
 
-def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
+def processEvents(parser: FileParser) -> list[Events.Event_Step]:
     workingEvent: list[Events.Event_Step] = []
     ifCount: int = 0
     inIf: bool = False
     hasElse: bool = False
     buffer: list[str] = []
-
-    for line in eventStrs:
-        line = line.strip()
-        
+    parser.line_num += 1
+    for line in parser.lines:        
+        print(line)
         # if (condition)
         if match := CCEventRegex.ifStatement.match(line):
-            if not inIf:
-                ifEvent = Events.IF(match.group("condition"))
-                inIf = True
-            else:
-                buffer.append(line)
-            ifCount += 1
+            prevState: ParserMode = parser.currentState
+            parser.currentState = ParserMode.IF
+            ifEvent = Events.IF(match.group("condition"))
+            ifEvent.thenStep = processEvents(parser)
+            if parser.currentState == ParserMode.ELSE:
+                ifEvent.elseStep = processEvents(parser)
+            parser.currentState = prevState
+            workingEvent.append(ifEvent)
 
         # endif
         elif CCEventRegex.endifStatement.match(line):
             # only count the last "endif" of a block
-            if ifCount > 1:
-                buffer.append(line)
-                ifCount -= 1
-            # make sure that there is no excess endifs
-            elif ifCount < 1:
-                raise CCES_Exception("Error: 'endif' found outside of if block")
-            # process if statement for the corresponding if
-            else:
-                if hasElse: ifEvent.elseStep = processEvents(buffer)
-                else: ifEvent.thenStep = processEvents(buffer)
-                ifCount = 0
-                workingEvent.append(ifEvent)
-                inIf = False
-                hasElse = False
-                buffer = []
+            if parser.currentState not in [ParserMode.IF, ParserMode.ELSE]:
+                raise CCES_Exception("'endif' found outside of if block")
+            
+            return workingEvent
 
         # else
         elif CCEventRegex.elseStatement.match(line):
-            if (not inIf):
-                raise CCES_Exception("'else' statement found outside of if block")
-            elif ifCount > 1:
-                buffer.append(line)
-            elif hasElse:
+            if parser.currentState == ParserMode.ELSE:
                 raise CCES_Exception("multiple 'else' statements found inside of if block")
+            elif parser.currentState != ParserMode.IF:
+                raise CCES_Exception("'else' statement found outside of if block")
             else:
-                hasElse = True
-                ifEvent.thenStep = processEvents(buffer)
-                buffer = []
-
-        # adds to string buffer for later processing
-        elif inIf:
-            buffer.append(line)
+                parser.currentState = ParserMode.ELSE
+                return workingEvent
 
         # dialogue
         elif match := CCEventRegex.dialogue.match(line):
@@ -229,13 +218,13 @@ def processEvents(eventStrs: list[str]) -> list[Events.Event_Step]:
                 workingEvent.append(Events.GOTO_LABEL(match.group("name")))
 
     #ensure that ifs are properly terminated
-    if inIf:
+    if parser.currentState == ParserMode.IF:
         raise CCES_Exception("'if' found without corresponding 'endif'")
 
     return workingEvent
 
 
-def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
+def handleEvent(parser: FileParser) -> Events.CommonEvent:
     event = Events.CommonEvent(type={}, loopCount = 3)
 
     eventNumber: int = 0
@@ -243,7 +232,7 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
     trackMessages: bool = False
     workingEvent = {}
 
-    for line in eventStrs:
+    for line in parser.lines:
         if match := CCEventRegex.eventHeader.match(line):
             if trackMessages:
                 try:
@@ -316,12 +305,6 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
         ignoreEvent: bool = False
         with open(filename, "r", encoding='utf8') as inputFile:
             for line in inputFile:
-                # remove comments and strip excess whitespace
-                line = re.sub(CCEventRegex.comment, "", line).strip()
-
-                # skip blank lines
-                if (not line): continue
-                
                 # handle file imports
                 if match := CCEventRegex.importFile.match(line):
                     filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
@@ -407,25 +390,24 @@ def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -
 
 
 if __name__ == "__main__":
-    x = FileParser("example.cces")
+    x = FileParser("pp.cces")
 
-    for line in x.lines:
-        print(f"{x.line_num}: {line}")
+    print([y.asDict() for y in processEvents(x)])
 
     exit(0)
-    parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
-    parser.add_argument("file", help="The eventscript file(s) to be processed. A file path if -r is enabled.", nargs = "+")
-    parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
-    parser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
-    parser.add_argument("-r", action = "store_true", dest = "recursive", help = "will parse all files in a single directory ending in '.cces', rather than a single file. ")
+    argparser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
+    argparser.add_argument("file", help="The eventscript file(s) to be processed. A file path if -r is enabled.", nargs = "+")
+    argparser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
+    argparser.add_argument("-v", "--verbose", action="store_true", help = "increases verbosity of output")
+    argparser.add_argument("-r", action = "store_true", dest = "recursive", help = "will parse all files in a single directory ending in '.cces', rather than a single file. ")
     
-    databaseGroup = parser.add_mutually_exclusive_group()
+    databaseGroup = argparser.add_mutually_exclusive_group()
     databaseGroup.add_argument("--no-patch-file", action = "store_false", dest = "genPatch", help = "do not generate a 'database.json.patch' file")
     databaseGroup.add_argument("-p", "--patch-file", default = "./assets/data/database.json.patch", dest = "databaseFile", metavar = "DATABASE", help = "the location of the database patch file")
 
 
 
-    args = parser.parse_args()
+    args = argparser.parse_args()
     inputFiles = args.file
     verbose = args.verbose
 
