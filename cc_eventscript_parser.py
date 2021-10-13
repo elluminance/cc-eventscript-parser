@@ -215,7 +215,7 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
                 try:
                     workingEvent.thenStep = processEvents(buffer)
                 except CCES_Exception as e:
-                    raise CCES_Exception(f"error in event {eventNumber}", *e.args)
+                    raise CCES_Exception(f"error in event {eventNumber}") from e
                 event.event[eventNumber] = workingEvent
                 buffer = []
 
@@ -265,7 +265,7 @@ def handleEvent(eventStrs: list[str]) -> Events.CommonEvent:
         try:
             workingEvent.thenStep = processEvents(buffer)
         except CCES_Exception as e:
-            raise CCES_Exception(f"error in message {eventNumber}", *e.args)
+            raise CCES_Exception(f"error in message {eventNumber}") from e
         event.event[eventNumber] = workingEvent
     if event.type == {}:
         event.type = {"killCount": 0, "type": "BATTLE_OVER"}
@@ -339,7 +339,7 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
         try: 
             readFile(filename)
         except CCES_Exception as e:
-            raise Exception(f"Error in {filename}: " + " - ".join(e.args))
+            raise Exception(f"Error in {filename}: ") from e
     return eventDict
 
 def generatePatchFile(events: dict[str, EventItem]) -> list[dict]:
@@ -389,6 +389,6 @@ if __name__ == "__main__":
     inputFiles = args.file
     verbose = args.verbose
 
-    events = parseFiles(inputFiles, args.recursive)
-    writeEventFiles(events, args.indentation)
-    if args.genPatch: writeDatabasePatchfile(generatePatchFile(events), args.databaseFile, args.indentation)
+    allEvents = parseFiles(inputFiles, args.recursive)
+    writeEventFiles(allEvents, args.indentation)
+    if args.genPatch: writeDatabasePatchfile(generatePatchFile(allEvents), args.databaseFile, args.indentation)
