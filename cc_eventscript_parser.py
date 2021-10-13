@@ -54,6 +54,24 @@ class EventItemType(Enum):
     IMPORT = 2
     INCLUDE = 3
 
+class FileParser:
+    def __init__(self, filename: str) -> None:
+        with open(filename, "r") as file: 
+            self.fileLines: list[str] = file.readlines()
+        self.line_num: int = 1
+        self.total_lines = len(self.fileLines)
+        print(self.line_num)
+        print(len(self.fileLines))
+
+    def getLine(self) -> str:
+        print(self.line_num > self.total_lines)
+        while self.line_num <= self.total_lines: 
+            curLine = self.fileLines[self.line_num - 1]
+            self.line_num += 1
+            yield curLine.strip()
+        return
+
+
 class EventItem:
     def __init__(self, eventType, filePath: str, event: Events.CommonEvent | None = None) -> None:
         self.eventType = eventType
@@ -373,6 +391,12 @@ def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -
 
 
 if __name__ == "__main__":
+    x = FileParser("example.cces")
+
+    for line in x.getLine():
+        print(line)
+
+    exit(0)
     parser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
     parser.add_argument("file", help="The eventscript file(s) to be processed. A file path if -r is enabled.", nargs = "+")
     parser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
