@@ -1,11 +1,10 @@
-import json
-import os, re, sys, argparse
+import json, os, re, argparse
 import CCEvents as Events
 import CCUtils
 from CCEvents import ChangeVarType
 from enum import Enum
 
-# ~ crosscode eventscript v1.5.0 parser, by EL ~
+# ~ crosscode eventscript v2.0.0-alpha parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 # REQUIRES PYTHON 3.10 OR ABOVE!
@@ -60,8 +59,9 @@ class EventItemType(Enum):
 
 class ParserMode(Enum):
     NORMAL = 0
-    IF = 1
-    ELSE = 2
+    EVENT = 1
+    IF = 2
+    ELSE = 3
 
 class FileParser:
     def __init__(self, filename: str) -> None:
@@ -75,10 +75,13 @@ class FileParser:
     @property
     def lines(self) -> str:
         while self.line_num <= self.total_lines: 
-            newLine = CCEventRegex.comment.sub("", self.fileLines[self.line_num - 1].strip())
+            newLine = CCEventRegex.comment.sub("", self.fileLines[self.line_num - 1]).strip()
+            
+            # skip any blank lines
             if not newLine: 
                 self.line_num += 1
                 continue
+
             yield newLine
             self.line_num += 1
         return
@@ -129,15 +132,14 @@ def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
 
 def processEvents(parser: FileParser) -> list[Events.Event_Step]:
     workingEvent: list[Events.Event_Step] = []
-    ifCount: int = 0
-    inIf: bool = False
-    hasElse: bool = False
-    buffer: list[str] = []
     parser.line_num += 1
     for line in parser.lines:        
-        print(line)
+        # return to previous state
+        if CCEventRegex.eventHeader.match(line) or CCEventRegex.title.match(line):
+            parser.line_num -= 1
+            return workingEvent
         # if (condition)
-        if match := CCEventRegex.ifStatement.match(line):
+        elif match := CCEventRegex.ifStatement.match(line):
             prevState: ParserMode = parser.currentState
             parser.currentState = ParserMode.IF
             ifEvent = Events.IF(match.group("condition"))
@@ -234,17 +236,17 @@ def handleEvent(parser: FileParser) -> Events.CommonEvent:
 
     for line in parser.lines:
         if match := CCEventRegex.eventHeader.match(line):
-            if trackMessages:
-                try:
-                    workingEvent.thenStep = processEvents(buffer)
-                except CCES_Exception as e:
-                    raise CCES_Exception(f"error in event {eventNumber}") from e
-                event.event[eventNumber] = workingEvent
-                buffer = []
+            workingEvent = Events.IF(f"call.runCount == {eventNumber}")
+            parser.currentState = ParserMode.EVENT
+            try:
+                workingEvent.thenStep = processEvents(parser)
+            except CCES_Exception as e:
+                raise CCES_Exception(f"error in event {eventNumber}") from e
+            event.event[eventNumber] = workingEvent
 
             eventNumber += 1
-            workingEvent = Events.IF(f"call.runCount == {eventNumber}")
-            trackMessages = True
+            parser.currentState = ParserMode.NORMAL
+            #trackMessages = True
 
         elif trackMessages:
             buffer.append(line) 
@@ -280,16 +282,16 @@ def handleEvent(parser: FileParser) -> Events.CommonEvent:
                 case "condition": event.condition = propertyValue
                 case "eventtype": event.eventType = propertyValue
                 case "loopcount": event.loopCount = int(propertyValue)
-                case _: print(f"Unrecognized property \"{propertyName}\", skipping...", file = sys.stderr)
+                case _: raise CCES_Exception(f"unrecognized property \"{propertyName}\"")
 
         else:
-            print(f"Unrecognized line \"{line}\", ignoring...", file = sys.stderr)
-    if buffer:
-        try:
-            workingEvent.thenStep = processEvents(buffer)
-        except CCES_Exception as e:
-            raise CCES_Exception(f"error in message {eventNumber}") from e
-        event.event[eventNumber] = workingEvent
+            raise CCES_Exception(f"Unrecognized line \"{line}\", ignoring...")
+    #if buffer:
+    #    try:
+    #        workingEvent.thenStep = processEvents(buffer)
+    #    except CCES_Exception as e:
+    #        raise CCES_Exception(f"error in message {eventNumber}") from e
+    #    event.event[eventNumber] = workingEvent
     if event.type == {}:
         event.type = {"killCount": 0, "type": "BATTLE_OVER"}
     return event
@@ -391,8 +393,8 @@ def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -
 
 if __name__ == "__main__":
     x = FileParser("pp.cces")
-
-    print([y.asDict() for y in processEvents(x)])
+    x.currentState = ParserMode.NORMAL
+    print(handleEvent(x).asDict())
 
     exit(0)
     argparser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
