@@ -1,7 +1,7 @@
 import json, os, re, argparse
 import CCEvents as Events
 import CCUtils
-from CCEvents import ChangeVarType
+from CCEvents import ChangeVarType, CommonEvent
 from enum import Enum
 
 # ~ crosscode eventscript v2.0.0-alpha parser, by EL ~
@@ -22,9 +22,11 @@ class ParserException(Exception):
 class CCEventRegex:
     # matches lines that start with "#" or "//"
     comment = re.compile(r"(?<!\\)(?:\/\/).*")
+
+
     # matches strings of the form "import (fileName)"
-    importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
-    includeFile = re.compile(r"^include\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>[\w+-]+){1}?(?:\.json)?$", flags=re.I)
+    importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)?(?P<filename>[\w+-]+){1}?(?P<extension>\.json(?:\.patch)?)?", flags=re.I)
+    includeFile = re.compile(r"^include\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)?(?P<filename>[\w+-]+){1}?(?P<extension>\.json(?:\.patch)?)?", flags=re.I)
     
     filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+)$")
     # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
@@ -234,8 +236,12 @@ def handleEvent(parser: FileParser) -> Events.CommonEvent:
     trackMessages: bool = False
     workingEvent = {}
 
+    parser.line_num += 1
     for line in parser.lines:
-        if match := CCEventRegex.eventHeader.match(line):
+        if match := CCEventRegex.title.match(line):
+            parser.line_num -= 1
+            return event
+        elif match := CCEventRegex.eventHeader.match(line):
             workingEvent = Events.IF(f"call.runCount == {eventNumber}")
             parser.currentState = ParserMode.EVENT
             try:
@@ -297,57 +303,67 @@ def handleEvent(parser: FileParser) -> Events.CommonEvent:
     return event
 
 
+def readFile(filename: str) -> dict[str, CommonEvent]:
+    eventDict: dict[str, CommonEvent] = {}
+    eventTitle: str = ""
+    #buffer: list[str] = []
+    beganEvents: bool = False
+    ignoreEvent: bool = False
+    parser = FileParser(filename)
+    try:
+        for line in parser.lines:
+            # handle file imports
+            if (match := CCEventRegex.importFile.match(line)) and (not beganEvents):
+                ext = match.group('extension') or '.json'
+                filename = f"./patches/{match.group('directory')}{match.group('filename')}{ext}"
+                eventTitle = match.group("filename")
+                if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
+                eventDict[eventTitle] = EventItem(EventItemType.IMPORT, filename)
+                eventTitle = ""
+
+            elif (not beganEvents) and (match := CCEventRegex.includeFile.match(line)):
+                ext = match.group('extension') or '.json'
+                filename = f"./patches/{match.group('directory')}{match.group('filename')}{ext}"
+                eventTitle = match.group("filename")
+                if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
+                eventDict[eventTitle] = EventItem(EventItemType.INCLUDE, filename)
+                eventTitle = ""
+
+            elif match := CCEventRegex.title.match(line):
+                beganEvents = True
+                # check that the event isn't empty so it only runs if there's actually something there
+                #if buffer: 
+                #    eventDict[eventTitle].event = handleEvent(buffer)
+                #    eventTitle = ""
+
+                # set the current event and clear the buffer
+                eventTitle = match.group("eventTitle").replace("/",".")
+                filename = f"./patches/{eventTitle}.json"
+                #buffer = []
+                
+                if match.group("ignore"):
+                    ignoreEvent = True
+                    continue
+                ignoreEvent = False
+                if eventTitle in eventDict: raise KeyError("Duplicate event name found in input file.")
+                eventDict[eventTitle] = EventItem(EventItemType.STANDARD_EVENT, filename, None)
+                eventDict[eventTitle].event = handleEvent(parser)
+
+            # raise error to skip event processing
+            elif not ignoreEvent:
+                raise CCES_Exception(f"syntax error: unexpected line '{line}'")
+                #if not ignoreEvent: buffer.append(line)
+
+            # process any final events if one is present
+        #if buffer: eventDict[eventTitle].event = handleEvent(buffer)
+        return eventDict
+    except Exception as e:
+        raise CCES_Exception(f"error on line {parser.line_num}: {e.args}") from e
+
+
 def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[str, EventItem]:
     eventDict: dict[str, EventItem] = {}
     filelist: list[str] = []
-    def readFile(filename):
-        nonlocal eventDict
-        eventTitle: str = ""
-        buffer: list[str] = []
-        ignoreEvent: bool = False
-        with open(filename, "r", encoding='utf8') as inputFile:
-            for line in inputFile:
-                # handle file imports
-                if match := CCEventRegex.importFile.match(line):
-                    filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
-                    eventTitle = match.group("filename")
-                    if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
-                    eventDict[eventTitle] = EventItem(EventItemType.IMPORT, filename)
-                    eventTitle = ""
-
-                if match := CCEventRegex.includeFile.match(line):
-                    filename = f"./patches/{match.group('directory')}{match.group('filename')}.json"
-                    eventTitle = match.group("filename")
-                    if eventTitle in eventDict: raise KeyError(f"Duplicate event name '{eventTitle}' found in input file.")
-                    eventDict[eventTitle] = EventItem(EventItemType.INCLUDE, filename)
-                    eventTitle = ""
-
-                elif match := CCEventRegex.title.match(line):
-                    # check that the event isn't empty so it only runs if there's actually something there
-                    if buffer: 
-                        eventDict[eventTitle].event = handleEvent(buffer)
-                        eventTitle = ""
-
-                    # set the current event and clear the buffer
-                    eventTitle = match.group("eventTitle").replace("/",".")
-                    filename = f"./patches/{eventTitle}.json"
-                    buffer = []
-                    
-                    if match.group("ignore"):
-                        ignoreEvent = True
-                        continue
-                    ignoreEvent = False
-                    if eventTitle in eventDict: raise KeyError("Duplicate event name found in input file.")
-                    eventDict[eventTitle] = EventItem(EventItemType.STANDARD_EVENT, filename, None)
-
-                # add anything missing to buffer
-                else:
-                    if not ignoreEvent: buffer.append(line)
-
-            # process any final events if one is present
-            if buffer: eventDict[eventTitle].event = handleEvent(buffer)
-    
-    
     if runRecursively:
         for item in os.listdir(inputFilenames[0]):
             if (not item.startswith("!")) and re.match(r".*\.cces", item):
@@ -356,7 +372,7 @@ def parseFiles(inputFilenames: list[str], runRecursively: bool = False) -> dict[
         filelist = inputFilenames
     for filename in filelist:
         try: 
-            readFile(filename)
+            eventDict |= readFile(filename)
         except CCES_Exception as e:
             raise Exception(f"Error in {filename}: ") from e
     return eventDict
@@ -392,11 +408,6 @@ def writeDatabasePatchfile(patchDict: dict, filename: str, indentation = None) -
 
 
 if __name__ == "__main__":
-    x = FileParser("pp.cces")
-    x.currentState = ParserMode.NORMAL
-    print(handleEvent(x).asDict())
-
-    exit(0)
     argparser = argparse.ArgumentParser(description= "Process a cc-eventscript file and produce the relevant .json and patch files.")
     argparser.add_argument("file", help="The eventscript file(s) to be processed. A file path if -r is enabled.", nargs = "+")
     argparser.add_argument("-i", "--indent", type = int, default = None, dest = "indentation", metavar = "NUM", nargs = "?", const = 4, help = "the indentation outputted files should use, if any. if supplied without a number, will default to 4 spaces")
