@@ -4,7 +4,7 @@ import CCUtils
 from CCEvents import ChangeVarType, CommonEvent
 from enum import Enum
 
-# ~ crosscode eventscript v2.0.0-alpha parser, by EL ~
+# ~ crosscode eventscript v2.0.0-beta parser, by EL ~
 # to run:
 #   python cc-eventscript-parser.py <input text file>
 # REQUIRES PYTHON 3.10 OR ABOVE!
@@ -23,6 +23,7 @@ class CCEventRegex:
     # matches lines that start with "#" or "//"
     comment = re.compile(r"(?<!\\)(?:\/\/).*")
 
+    processorDirective = re.compile(r"^#(.+)")
 
     # matches strings of the form "import (fileName)"
     importFile = re.compile(r"^import\s+(?:(?:\.\/)?patches\/)?(?P<directory>(?:[.\w]+[\\\/])*)?(?P<filename>[\w+-]+){1}?(?P<extension>\.json(?:\.patch)?)?", flags=re.I)
@@ -71,8 +72,8 @@ class FileParser:
             self.fileLines: list[str] = file.readlines()
         self.line_num: int = 1
         self.total_lines = len(self.fileLines)
-        self.line_bookmark: int | None = None
         self.currentState: ParserMode = ParserMode.NORMAL
+        self.macros: dict[str, str] = {}
 
     @property
     def lines(self) -> str:
@@ -83,21 +84,27 @@ class FileParser:
             if not newLine: 
                 self.line_num += 1
                 continue
+            
+            if match := CCEventRegex.processorDirective.match(newLine):
+                self._processDirective(match.group(1))
+                self.line_num += 1
+                continue
 
+            for key, value in self.macros.items():
+                newLine = newLine.replace(f"${key}", value)
             yield newLine
             self.line_num += 1
         return
 
-    def setBookmark(self):
-        if(self.line_bookmark is None):
-            raise ParserException("Bookmark is already set!")
-        self.line_bookmark = self.line_num
-
-    def returnToBookmark(self):
-        if(self.line_bookmark is None):
-            raise ParserException("Bookmark not set!")
-        self.line_num = self.line_bookmark
-        self.line_bookmark = None
+    def _processDirective(self, text: str) -> None:
+        textSplit = text.split()
+        
+        match textSplit[0]:
+            case "define":
+                textMatch = re.match(r"define\s+\$?(\w+)\s+(.+)", text)
+                self.macros[textMatch.group(1)] = textMatch.group(2)
+            case _:
+                raise ParserException(f"unknown directive \"{text[0]}\"")
 
 class EventItem:
     def __init__(self, eventType, filePath: str, event: Events.CommonEvent | None = None) -> None:
