@@ -31,7 +31,7 @@ class CCEventRegex:
     
     filepath = re.compile(r"^(?P<directory>(?:[.\w]+[\\\/])*)(?P<filename>\S+)$")
     # matches strings of the form "(character) > (expression): (message)" or "(character) > (expression) (message)"
-    dialogue = re.compile(r"^(?P<character>.+)\s*>\s*(?P<expression>[A-Z\d_]+)[\s:](?P<dialogue>.+)$")
+    dialogue = re.compile(r"(?i)^(?P<character>.+)\s*>\s*(?P<expression>[A-Z\d_]+)[\s:](?P<dialogue>.+?)\s*(?P<autocontinue>#autocontinue)?$")
     # matches strings of the form "message (number)", insensitive search
     eventHeader = re.compile(r"^(?:message|event) (?P<eventNum>\d+):?$", flags=re.I)
     # matches strings of the form "== title =="
@@ -66,6 +66,10 @@ class ParserMode(Enum):
     IF = 2
     ELSE = 3
 
+class MessageType(Enum):
+    SIDE_MSG = 1
+    NORMAL_MSG = 2
+
 class FileParser:
     def __init__(self, filename: str) -> None:
         with open(filename, "r") as file: 
@@ -74,6 +78,7 @@ class FileParser:
         self.total_lines = len(self.fileLines)
         self.currentState: ParserMode = ParserMode.NORMAL
         self.macros: dict[str, str] = {}
+        self.messageMode: MessageType = MessageType.SIDE_MSG
 
     @property
     def lines(self) -> str:
@@ -97,12 +102,20 @@ class FileParser:
         return
 
     def _processDirective(self, text: str) -> None:
-        textSplit = text.split()
+        textSplit = text.lower().split()
         
         match textSplit[0]:
             case "define":
                 textMatch = re.match(r"define\s+\$?(\w+)\s+(.+)", text)
                 self.macros[textMatch.group(1)] = textMatch.group(2)
+            case "msgtype":
+                match textSplit[1]:
+                    case "side_msg" | "sidemsg":
+                        self.messageMode = MessageType.SIDE_MSG
+                    case "message":
+                        self.messageMode = MessageType.NORMAL_MSG
+                    case _:
+                        raise ParserException(f"unknown message type \"{textSplit[1]}\"")
             case _:
                 raise ParserException(f"unknown directive \"{text[0]}\"")
 
@@ -130,12 +143,15 @@ class EventItem:
                 raise CCES_Exception("Unknown patch type!")
 
 
-def processDialogue(inputString: str) -> Events.SHOW_SIDE_MSG:
+def processDialogue(inputString: str, messageType: MessageType = MessageType.SIDE_MSG) -> Events.SHOW_SIDE_MSG | Events.SHOW_MSG:
     messageMatch = CCEventRegex.dialogue.match(inputString)
     character = CCUtils.Character(*messageMatch.group("character", "expression"))
     message = messageMatch.group("dialogue").replace("\\n","\n")
-
-    messageEvent = Events.SHOW_SIDE_MSG(character, message)
+    match messageType:
+        case MessageType.SIDE_MSG:
+            messageEvent = Events.SHOW_SIDE_MSG(character, message)
+        case MessageType.NORMAL_MSG:
+            messageEvent = Events.SHOW_MSG(character, message, bool(messageMatch.group("autocontinue")))
     return messageEvent
 
 
@@ -178,7 +194,7 @@ def processEvents(parser: FileParser) -> list[Events.Event_Step]:
 
         # dialogue
         elif match := CCEventRegex.dialogue.match(line):
-            workingEvent.append(processDialogue(line))
+            workingEvent.append(processDialogue(line, parser.messageMode))
 
         # set var = bool
         elif match := CCEventRegex.setVarBool.match(line):
@@ -236,7 +252,7 @@ def processEvents(parser: FileParser) -> list[Events.Event_Step]:
 
 
 def handleEvent(parser: FileParser) -> Events.CommonEvent:
-    event = Events.CommonEvent(type={}, loopCount = 3)
+    event = Events.CommonEvent(commonEventType={}, loopCount = 3)
 
     eventNumber: int = 0
     buffer: list[str] = []
@@ -430,7 +446,6 @@ if __name__ == "__main__":
     args = argparser.parse_args()
     inputFiles = args.file
     verbose = args.verbose
-
     allEvents = parseFiles(inputFiles, args.recursive)
     writeEventFiles(allEvents, args.indentation)
     if args.genPatch: writeDatabasePatchfile(generatePatchFile(allEvents), args.databaseFile, args.indentation)

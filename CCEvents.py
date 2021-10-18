@@ -54,16 +54,13 @@ class _Message(Event_Step):
 
 
 class CHANGE_VAR_BOOL(_ChangeVar):
-    def __init__(self, varName: str, value: bool, changeType: ChangeVarType = ChangeVarType.SET) -> None:
-        super().__init__(varName, value, changeType)
+    pass
 
 class CHANGE_VAR_NUMBER(_ChangeVar):
-    def __init__(self, varName: str, value: int, changeType: ChangeVarType) -> None:
-        super().__init__(varName, value, changeType)
+    pass
 
 class SHOW_SIDE_MSG(_Message):
-    def __init__(self, character: Character, message: str) -> None:
-        super().__init__(character, message)
+    pass
 
 class SHOW_MSG(_Message):
     def __init__(self, character: Character, message: str, autoContinue: bool = False) -> None:
@@ -74,11 +71,11 @@ class SHOW_MSG(_Message):
         return super().asDict() | {"autoContinue": self.autoContinue}
 
 class IF(Event_Step):
-    def __init__(self, condition: str, *, thenEvent: list[Event_Step] = [], elseEvent: list[Event_Step] = []) -> None:
+    def __init__(self, condition: str, *, thenEvent: list[Event_Step] = None, elseEvent: list[Event_Step] = None) -> None:
         super().__init__()
         self.condition: str = condition
-        self.thenStep: list[Event_Step] = thenEvent
-        self.elseStep: list[Event_Step] = elseEvent
+        self.thenStep: list[Event_Step] = thenEvent if thenEvent is not None else []
+        self.elseStep: list[Event_Step] = elseEvent if elseEvent is not None else []
     
     @property
     def withElse(self) -> bool: return len(self.elseStep) > 0
@@ -135,9 +132,8 @@ class SELECT_RANDOM(Event_Step):
     def asDict(self) -> dict:
         events: dict[list[Event_Step]] = {}
 
-        for i in range(self.options):
-          for j in range(self.options[i].events):
-            events |= {f"{i}_{j}": [event.asDict() for event in self.options[i].events]}
+        for i in range(self.options): 
+            for j in range(self.options[i].events): events |= {f"{i}_{j}": [event.asDict() for event in self.options[i].events]}
 
         return super().asDict() | {
             "options": [
@@ -182,13 +178,13 @@ class GOTO_LABEL_WHILE(GOTO_LABEL):
 
 
 class CommonEvent:
-    def __init__(self, *, type: dict, loopCount: int, frequency: str = "REGULAR", repeat: str = "ONCE", condition: str = "true",  
-            eventType: str = "PARALLEL", overrideSideMessage: bool = False, events: dict[int, Event_Step] | list[Event_Step] = {}) -> None:
+    def __init__(self, *, commonEventType: dict, loopCount: int, frequency: str = "REGULAR", repeat: str = "ONCE", condition: str = "true",  
+            eventType: str = "PARALLEL", overrideSideMessage: bool = False, events: dict[int, Event_Step] | list[Event_Step] = None) -> None:
         self.frequency: str = frequency
         self.repeat: str = repeat
         self.condition: str = condition
         self.eventType: str = eventType
-        self.type: dict = type
+        self.type: dict = commonEventType
         self.loopCount: int = loopCount
         self.overrideSideMessage: bool = overrideSideMessage
         self.event: dict[int, Event_Step] = {}

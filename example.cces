@@ -1,5 +1,8 @@
 #define $Sidwell antagonists.shady
-// lines that begin with "//" or "//" are skipped.
+
+#msgtype message
+
+// lines that begin with "//" are skipped.
 // the title/name of the event should be surrounded by "==" signs.
 == apollo+battle-over+example ==
 
@@ -23,8 +26,8 @@ Lea > CHARMED: ...!
 
 
 Message 2
-Apollo > DEFAULT: We should duel again, \nSpheromancer Lea!
-$Sidwell > SMILE: ...
+Apollo > DEFAULT: We should duel again, \nSpheromancer Lea! #autocontinue
+$Sidwell > SMILE: ... #autocontinue
 // a "set" command will cause the event to set a variable's value
 // for a boolean value, the format will always be:
 // set varName = (true/false) 
